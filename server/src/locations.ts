@@ -25,7 +25,9 @@ locationsRouter.post('/', async (request, response, next) => {
     const parsed = inputSchema.safeParse(request.body)
     if (!parsed.success) return response.status(400).json({ error: { message: '위치 입력값이 올바르지 않아요.' } })
     if (parsed.data.parentId && !(await locationExists(parsed.data.parentId))) return response.status(400).json({ error: { message: '상위 위치를 찾을 수 없어요.' } })
+    if (await siblingNameExists(parsed.data.parentId, parsed.data.name)) return response.status(409).json({ error: { message: '같은 상위 위치에 동일한 이름이 이미 있어요.' } })
     const { data, error } = await supabase.from('locations').insert({ name: parsed.data.name, parent_id: parsed.data.parentId }).select().single()
+    if (error?.code === '23505') return response.status(409).json({ error: { message: '같은 상위 위치에 동일한 이름이 이미 있어요.' } })
     if (error) throw error
     response.status(201).json(mapLocation(data))
   } catch (error) { next(error) }
@@ -39,7 +41,9 @@ locationsRouter.patch('/:id', async (request, response, next) => {
     if (readError) throw readError
     if (!all.some((row) => row.id === request.params.id)) return response.status(404).json({ error: { message: '위치를 찾을 수 없어요.' } })
     if (parsed.data.parentId && (!all.some((row) => row.id === parsed.data.parentId) || descendantIds(request.params.id, all).has(parsed.data.parentId))) return response.status(400).json({ error: { message: '자신 또는 하위 위치 아래로 옮길 수 없어요.' } })
+    if (await siblingNameExists(parsed.data.parentId, parsed.data.name, request.params.id)) return response.status(409).json({ error: { message: '같은 상위 위치에 동일한 이름이 이미 있어요.' } })
     const { data, error } = await supabase.from('locations').update({ name: parsed.data.name, parent_id: parsed.data.parentId, updated_at: new Date().toISOString(), updated_by: 'local-user' }).eq('id', request.params.id).select().single()
+    if (error?.code === '23505') return response.status(409).json({ error: { message: '같은 상위 위치에 동일한 이름이 이미 있어요.' } })
     if (error) throw error
     response.json(mapLocation(data))
   } catch (error) { next(error) }
@@ -70,6 +74,15 @@ const locationExists = async (id: string) => {
   const { data, error } = await supabase.from('locations').select('id').eq('id', id).maybeSingle()
   if (error) throw error
   return Boolean(data)
+}
+
+const siblingNameExists = async (parentId: string | null, name: string, excludedId?: string) => {
+  let query = supabase.from('locations').select('id,name')
+  query = parentId ? query.eq('parent_id', parentId) : query.is('parent_id', null)
+  const { data, error } = await query
+  if (error) throw error
+  const normalizedName = name.trim().toLocaleLowerCase('ko-KR')
+  return data.some((location) => location.id !== excludedId && location.name.trim().toLocaleLowerCase('ko-KR') === normalizedName)
 }
 
 const descendantIds = (id: string, rows: Array<{ id: string; parent_id: string | null }>) => {

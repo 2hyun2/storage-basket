@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getLocationPath } from '../../utils/location'
 
 export const LocationFormModal = ({ locations, initialParentId, onCreateLocation, onClose }) => {
   const [name, setName] = useState('')
   const [parentId, setParentId] = useState(initialParentId ?? '')
   const [errors, setErrors] = useState({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const submitInFlight = useRef(false)
 
   useEffect(() => {
     const closeOnEscape = (event) => {
@@ -19,6 +21,7 @@ export const LocationFormModal = ({ locations, initialParentId, onCreateLocation
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (submitInFlight.current) return
     const trimmedName = name.trim()
     const nextErrors = {}
 
@@ -27,6 +30,9 @@ export const LocationFormModal = ({ locations, initialParentId, onCreateLocation
     if (parentId && !locations.some((location) => location.id === parentId)) {
       nextErrors.parentId = '목록에 있는 상위 위치를 선택하세요.'
     }
+    if (locations.some((location) => location.parentId === (parentId || null) && location.name.trim().toLocaleLowerCase('ko-KR') === trimmedName.toLocaleLowerCase('ko-KR'))) {
+      nextErrors.name = '같은 상위 위치에 동일한 이름이 이미 있어요.'
+    }
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors)
@@ -34,9 +40,16 @@ export const LocationFormModal = ({ locations, initialParentId, onCreateLocation
     }
 
     try {
+      submitInFlight.current = true
+      setIsSubmitting(true)
+      setErrors({})
       await onCreateLocation({ name: trimmedName, parentId: parentId || null })
       onClose()
-    } catch (error) { setErrors({ submit: error.message }) }
+    } catch (error) {
+      submitInFlight.current = false
+      setIsSubmitting(false)
+      setErrors({ submit: error.message })
+    }
   }
 
   return (
@@ -106,6 +119,7 @@ export const LocationFormModal = ({ locations, initialParentId, onCreateLocation
             {errors.submit && <span className="mr-auto self-center text-xs text-red-600">{errors.submit}</span>}
             <button
               type="button"
+              disabled={isSubmitting}
               className="rounded-lg px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
               onClick={onClose}
             >
@@ -113,9 +127,10 @@ export const LocationFormModal = ({ locations, initialParentId, onCreateLocation
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700"
+              disabled={isSubmitting}
+              className="rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              추가
+              {isSubmitting ? '추가 중…' : '추가'}
             </button>
           </div>
         </form>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getDescendantLocationIds, getLocationPath } from '../../utils/location'
 
 export const LocationManageModal = ({
@@ -17,6 +17,8 @@ export const LocationManageModal = ({
   const [isDeleteConfirming, setIsDeleteConfirming] = useState(false)
   const [itemDestinationIds, setItemDestinationIds] = useState({})
   const [deleteErrors, setDeleteErrors] = useState({})
+  const [pendingAction, setPendingAction] = useState(null)
+  const actionInFlight = useRef(false)
 
   const descendantIds = useMemo(
     () => getDescendantLocationIds(location.id, locations),
@@ -40,6 +42,7 @@ export const LocationManageModal = ({
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (actionInFlight.current) return
     const trimmedName = name.trim()
     const nextErrors = {}
 
@@ -48,6 +51,9 @@ export const LocationManageModal = ({
     if (parentId && !availableParents.some((candidate) => candidate.id === parentId)) {
       nextErrors.parentId = '자신 또는 하위 위치 아래로는 옮길 수 없어요.'
     }
+    if (locations.some((candidate) => candidate.id !== location.id && candidate.parentId === (parentId || null) && candidate.name.trim().toLocaleLowerCase('ko-KR') === trimmedName.toLocaleLowerCase('ko-KR'))) {
+      nextErrors.name = '같은 상위 위치에 동일한 이름이 이미 있어요.'
+    }
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors)
@@ -55,12 +61,20 @@ export const LocationManageModal = ({
     }
 
     try {
+      actionInFlight.current = true
+      setPendingAction('save')
+      setErrors({})
       await onUpdateLocation(location.id, { name: trimmedName, parentId: parentId || null })
       onClose()
-    } catch (error) { setErrors({ submit: error.message }) }
+    } catch (error) {
+      actionInFlight.current = false
+      setPendingAction(null)
+      setErrors({ submit: error.message })
+    }
   }
 
   const handleDelete = async () => {
+    if (actionInFlight.current) return
     const nextDeleteErrors = Object.fromEntries(
       locationItems
         .filter((item) => !itemDestinationIds[item.id])
@@ -73,11 +87,18 @@ export const LocationManageModal = ({
     }
 
     try {
+      actionInFlight.current = true
+      setPendingAction('delete')
+      setDeleteErrors({})
       if (itemCount > 0) await onDeleteLocationWithItemMoves(location.id, itemDestinationIds)
       else await onDeleteLocation(location.id)
       onAfterDelete(location.parentId)
       onClose()
-    } catch (error) { setDeleteErrors({ submit: error.message }) }
+    } catch (error) {
+      actionInFlight.current = false
+      setPendingAction(null)
+      setDeleteErrors({ submit: error.message })
+    }
   }
 
   const handleItemDestinationChange = (itemId, destinationId) => {
@@ -152,11 +173,11 @@ export const LocationManageModal = ({
 
           <div className="flex justify-end gap-2 border-t border-slate-200 pt-5">
             {errors.submit && <span className="mr-auto self-center text-xs text-red-600">{errors.submit}</span>}
-            <button type="button" className="rounded-lg px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100" onClick={onClose}>
+            <button type="button" disabled={Boolean(pendingAction)} className="rounded-lg px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-60" onClick={onClose}>
               취소
             </button>
-            <button type="submit" className="rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700">
-              저장
+            <button type="submit" disabled={Boolean(pendingAction)} className="rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60">
+              {pendingAction === 'save' ? '저장 중…' : '저장'}
             </button>
           </div>
         </form>
@@ -227,8 +248,8 @@ export const LocationManageModal = ({
                     <button type="button" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-white" onClick={() => setIsDeleteConfirming(false)}>
                       취소
                     </button>
-                    <button type="button" className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700" onClick={handleDelete}>
-                      {itemCount > 0 ? '이동 후 삭제' : '삭제'}
+                    <button type="button" disabled={Boolean(pendingAction)} className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60" onClick={handleDelete}>
+                      {pendingAction === 'delete' ? '처리 중…' : itemCount > 0 ? '이동 후 삭제' : '삭제'}
                     </button>
                   </div>
                 </div>

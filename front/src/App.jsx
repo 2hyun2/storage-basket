@@ -6,6 +6,7 @@ import { ItemDetailModal } from './components/item/ItemDetailModal'
 import { ItemFormModal } from './components/item/ItemFormModal'
 import { LocationFormModal } from './components/location/LocationFormModal'
 import { LocationManageModal } from './components/location/LocationManageModal'
+import { MobileLocationBar } from './components/location/MobileLocationBar'
 import { users } from './data/users'
 import { useAppUi } from './hooks/useAppUi'
 import { useInventory } from './hooks/useInventory'
@@ -71,8 +72,15 @@ export const App = () => {
         onSearchKeywordChange={ui.setSearchKeyword}
         serverStatus={serverStatus}
       />
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <Sidebar
+          locations={inventory.locations}
+          selectedLocationId={ui.selectedLocationId}
+          onSelectLocation={ui.selectLocation}
+          onOpenLocationForm={() => ui.openLocationForm(ui.selectedLocationId)}
+          onOpenLocationManage={ui.openLocationManage}
+        />
+        <MobileLocationBar
           locations={inventory.locations}
           selectedLocationId={ui.selectedLocationId}
           onSelectLocation={ui.selectLocation}

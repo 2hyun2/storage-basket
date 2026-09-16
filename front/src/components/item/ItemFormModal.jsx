@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getLocationPath } from '../../utils/location'
 
 const initialFormValues = {
@@ -15,6 +15,8 @@ export const ItemFormModal = ({ item, locations, onCreateItem, onUpdateItem, onC
   const isEditing = Boolean(item)
   const [formValues, setFormValues] = useState(() => getFormValues(item))
   const [errors, setErrors] = useState({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const submitInFlight = useRef(false)
 
   useEffect(() => {
     const closeOnEscape = (event) => {
@@ -34,6 +36,7 @@ export const ItemFormModal = ({ item, locations, onCreateItem, onUpdateItem, onC
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (submitInFlight.current) return
     const nextErrors = validateForm(formValues, locations)
 
     if (Object.keys(nextErrors).length > 0) {
@@ -54,10 +57,17 @@ export const ItemFormModal = ({ item, locations, onCreateItem, onUpdateItem, onC
     }
 
     try {
+      submitInFlight.current = true
+      setIsSubmitting(true)
+      setErrors({})
       if (isEditing) await onUpdateItem(item.id, itemValues)
       else await onCreateItem(itemValues)
       onClose()
-    } catch (error) { setErrors({ submit: error.message }) }
+    } catch (error) {
+      submitInFlight.current = false
+      setIsSubmitting(false)
+      setErrors({ submit: error.message })
+    }
   }
 
   return (
@@ -178,6 +188,7 @@ export const ItemFormModal = ({ item, locations, onCreateItem, onUpdateItem, onC
             {errors.submit && <span className="mr-auto self-center text-xs text-red-600">{errors.submit}</span>}
             <button
               type="button"
+              disabled={isSubmitting}
               className="rounded-lg px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
               onClick={onClose}
             >
@@ -185,9 +196,10 @@ export const ItemFormModal = ({ item, locations, onCreateItem, onUpdateItem, onC
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700"
+              disabled={isSubmitting}
+              className="rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isEditing ? '저장' : '등록'}
+              {isSubmitting ? '처리 중…' : isEditing ? '저장' : '등록'}
             </button>
           </div>
         </form>
