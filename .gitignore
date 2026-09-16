@@ -9,6 +9,7 @@ dist/
 
 # Logs and local caches
 *.log
+*.db
 .cache/
 
 # Editor and operating-system files
