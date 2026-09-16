@@ -1,4 +1,4 @@
-export const Header = ({ searchKeyword, onSearchKeywordChange }) => {
+export const Header = ({ searchKeyword, onSearchKeywordChange, serverStatus }) => {
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6">
       <div className="flex items-center gap-3">
@@ -14,6 +14,21 @@ export const Header = ({ searchKeyword, onSearchKeywordChange }) => {
       </div>
 
       <div className="flex items-center gap-3">
+        <span
+          className={`hidden rounded-full px-2.5 py-1 text-xs font-medium sm:inline-flex ${
+            serverStatus === 'connected'
+              ? 'bg-emerald-50 text-emerald-700'
+              : serverStatus === 'checking'
+                ? 'bg-amber-50 text-amber-700'
+                : 'bg-red-50 text-red-700'
+          }`}
+        >
+          {serverStatus === 'connected'
+            ? '서버 연결됨'
+            : serverStatus === 'checking'
+              ? '서버 확인 중'
+              : '서버 연결 안 됨'}
+        </span>
         <label className="hidden sm:block">
           <span className="sr-only">물건 검색</span>
           <input

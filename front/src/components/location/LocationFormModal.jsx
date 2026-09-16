@@ -17,7 +17,7 @@ export const LocationFormModal = ({ locations, initialParentId, onCreateLocation
     return () => window.removeEventListener('keydown', closeOnEscape)
   }, [onClose])
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     const trimmedName = name.trim()
     const nextErrors = {}
@@ -33,8 +33,10 @@ export const LocationFormModal = ({ locations, initialParentId, onCreateLocation
       return
     }
 
-    onCreateLocation({ name: trimmedName, parentId: parentId || null })
-    onClose()
+    try {
+      await onCreateLocation({ name: trimmedName, parentId: parentId || null })
+      onClose()
+    } catch (error) { setErrors({ submit: error.message }) }
   }
 
   return (
@@ -101,6 +103,7 @@ export const LocationFormModal = ({ locations, initialParentId, onCreateLocation
           </label>
 
           <div className="flex justify-end gap-2 border-t border-slate-200 pt-5">
+            {errors.submit && <span className="mr-auto self-center text-xs text-red-600">{errors.submit}</span>}
             <button
               type="button"
               className="rounded-lg px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100"

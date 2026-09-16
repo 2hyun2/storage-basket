@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
-export const ItemDetailModal = ({ item, createdByName, updatedByName, onClose }) => {
+export const ItemDetailModal = ({ item, createdByName, updatedByName, onEdit, onDelete, onClose }) => {
+  const [isDeleteConfirming, setIsDeleteConfirming] = useState(false)
   useEffect(() => {
     const closeOnEscape = (event) => {
       if (event.key === 'Escape') {
@@ -68,6 +69,29 @@ export const ItemDetailModal = ({ item, createdByName, updatedByName, onClose })
             <DetailRow label="마지막 수정" value={`${formatDateTime(updatedAt)} · ${updatedByName}`} />
           </dl>
         </section>
+
+        <div className="mt-6 flex flex-wrap justify-between gap-3 border-t border-slate-200 pt-5">
+          <div>
+            {isDeleteConfirming ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-red-700">정말 삭제할까요?</span>
+                <button type="button" className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700" onClick={onDelete}>
+                  삭제
+                </button>
+                <button type="button" className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100" onClick={() => setIsDeleteConfirming(false)}>
+                  취소
+                </button>
+              </div>
+            ) : (
+              <button type="button" className="rounded-lg px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50" onClick={() => setIsDeleteConfirming(true)}>
+                물건 삭제
+              </button>
+            )}
+          </div>
+          <button type="button" className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700" onClick={onEdit}>
+            수정
+          </button>
+        </div>
       </section>
     </div>
   )

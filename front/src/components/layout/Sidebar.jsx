@@ -5,6 +5,7 @@ export const Sidebar = ({
   selectedLocationId,
   onSelectLocation,
   onOpenLocationForm,
+  onOpenLocationManage,
 }) => {
   return (
     <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-white md:flex md:flex-col">
@@ -27,6 +28,18 @@ export const Sidebar = ({
           onSelectLocation={onSelectLocation}
         />
       </nav>
+
+      {selectedLocationId && (
+        <div className="px-4 pb-4">
+          <button
+            type="button"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+            onClick={() => onOpenLocationManage(selectedLocationId)}
+          >
+            선택한 위치 관리
+          </button>
+        </div>
+      )}
 
       <div className="mt-auto border-t border-slate-200 p-4">
         <button

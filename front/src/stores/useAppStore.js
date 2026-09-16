@@ -9,9 +9,12 @@ export const useAppStore = create((set) => ({
   // 물건 상세보지 모달 
   selectedItemId: null, // 상세 모달에서 보고 있는 물건 ID. null이면 상세 모달을 닫는다.
   isItemFormOpen: false, // 물건 등록 모달의 표시 여부.
+  itemFormItemId: null,
   // 위치 등록
   isLocationFormOpen: false, // 위치 등록 모달의 표시 여부.
   locationFormParentId: null, // 새 위치의 부모가 될 치 ID. null이면 최상위 위치를 만든다.
+  isLocationManageOpen: false,
+  managedLocationId: null,
 
   // 선택 위치를 바꿔 목록 필터와 사이드바 강조 상태를 함께 갱신한다.
   selectLocation: (locationId) => set({ selectedLocationId: locationId }),
@@ -24,11 +27,14 @@ export const useAppStore = create((set) => ({
   // 선택한 물건을 비워 상세 모달을 닫는다
   clearSelectedItem: () => set({ selectedItemId: null }),
   // 물건 등록 모달을 연다.
-  openItemForm: () => set({ isItemFormOpen: true }),
+  openItemForm: (itemId = null) => set({ isItemFormOpen: true, itemFormItemId: itemId }),
   // 물건 등록 모달을 닫는다
-  closeItemForm: () => set({ isItemFormOpen: false }),
+  closeItemForm: () => set({ isItemFormOpen: false, itemFormItemId: null }),
   // 위치 등록 모달을 열고, 선택적으로 새 위치의 부모 ID를 저장한다.
   openLocationForm: (parentId = null) => set({ isLocationFormOpen: true, locationFormParentId: parentId }),
   // 위치 등록 모달을 닫고 다음 등록을 위해 부모 ID도 초기화한다.
   closeLocationForm: () => set({ isLocationFormOpen: false, locationFormParentId: null }),
+  // 선택한 위치의 이름·상위 위치·삭제를 관리하는 모달을 연다.
+  openLocationManage: (locationId) => set({ isLocationManageOpen: true, managedLocationId: locationId }),
+  closeLocationManage: () => set({ isLocationManageOpen: false, managedLocationId: null }),
 }))
