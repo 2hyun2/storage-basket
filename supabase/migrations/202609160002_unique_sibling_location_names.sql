@@ -41,6 +41,6 @@ end
 $$;
 
 -- PostgreSQL이 동시 요청 사이에서도 같은 형제 이름을 원자적으로 차단한다.
-create unique index locations_sibling_name_unique
+create unique index if not exists locations_sibling_name_unique
   on public.locations (parent_id, lower(btrim(name)))
   nulls not distinct;
