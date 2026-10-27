@@ -5,10 +5,16 @@ import { Canvas } from '@react-three/fiber'
 import { RectangularGrid } from '@/components/space/space-overview-3d'
 
 const rooms = [
-  { name: '거실', position: [-1.5, 0, 0], size: [3, 4], color: '#ddd6fe', storage: 'TV장 · 소파 수납장' },
-  { name: '안방', position: [1.5, 0, 1], size: [3, 2], color: '#fecdd3', storage: '옷장 · 침대 옆 서랍' },
-  { name: '작은방', position: [1.5, 0, -1], size: [3, 2], color: '#bae6fd', storage: '책장 · 침대 하부장' },
-]
+  { name: '거실', position: [-1.5, 0, 0] as const, size: [3, 4] as const, color: '#ddd6fe', storage: 'TV장 · 소파 수납장' },
+  { name: '안방', position: [1.5, 0, 1] as const, size: [3, 2] as const, color: '#fecdd3', storage: '옷장 · 침대 옆 서랍' },
+  { name: '작은방', position: [1.5, 0, -1] as const, size: [3, 2] as const, color: '#bae6fd', storage: '책장 · 침대 하부장' },
+] satisfies Array<{
+  name: string
+  position: [number, number, number]
+  size: [number, number]
+  color: string
+  storage: string
+}>
 
 export function LandingHomeDemo() {
   return (
