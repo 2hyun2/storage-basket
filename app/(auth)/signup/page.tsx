@@ -4,7 +4,7 @@ import { AuthForm } from '@/components/auth-form'
 
 export default function SignupPage() {
   return (
-    <section className="w-full max-w-md rounded-3xl border border-violet-100 bg-white p-6 shadow-xl shadow-violet-100/70 sm:p-8">
+    <section className="w-full max-w-md rounded-3xl border border-violet-100 bg-white p-4 shadow-xl shadow-violet-100/70 sm:p-6">
       <Link
         href="/"
         className="inline-flex size-10 items-center justify-center rounded-xl bg-violet-600 font-bold text-white"

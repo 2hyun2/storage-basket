@@ -8,7 +8,7 @@ type PlanMapProps = {
 
 export function PlanMap({ layout }: PlanMapProps) {
   return (
-    <div className="overflow-hidden rounded-3xl border border-violet-100 bg-white p-3 shadow-sm sm:p-5">
+    <div className="overflow-hidden rounded-3xl border border-violet-100 bg-white p-2 shadow-sm sm:p-4">
       <div className="mb-4 flex items-center justify-between gap-4 px-1">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-500">
@@ -69,7 +69,7 @@ function LocationTile({ node, grid }: LocationTileProps) {
     </>
   )
 
-  const className = "group absolute flex min-w-0 flex-col justify-between rounded-xl border border-white/40 p-2.5 text-left text-white shadow-sm transition sm:p-3"
+  const className = "group absolute flex min-w-0 flex-col justify-between rounded-xl border border-white/40 p-2 text-left text-white shadow-sm transition sm:p-2"
   const style = { left, top, width, height, backgroundColor: node.color }
 
   if (!node.drillable) {

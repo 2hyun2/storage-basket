@@ -4,14 +4,14 @@ import { CreateRegistrationForm } from '@/components/space/create-registration-f
 
 export default function CreateSpacePage() {
   return (
-    <main className="min-h-dvh bg-[#f8f7ff] px-5 py-7 text-slate-950 sm:px-8 sm:py-10">
+    <main className="min-h-dvh bg-[#f8f7ff] px-4 py-6 text-slate-950 sm:px-6 sm:py-8">
       <section className="mx-auto max-w-2xl">
         <Link href="/app/space" className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-violet-700">
           <ArrowLeft size={17} />
           수납 지도로 돌아가기
         </Link>
 
-        <div className="mt-7 rounded-3xl border border-violet-100 bg-white p-5 shadow-sm sm:p-8">
+        <div className="mt-6 rounded-3xl border border-violet-100 bg-white p-4 shadow-sm sm:p-6">
           <p className="flex items-center gap-2 text-sm font-bold text-violet-600">
             <Plus size={17} />
             새 항목 등록
