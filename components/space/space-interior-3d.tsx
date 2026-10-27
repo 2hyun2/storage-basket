@@ -26,7 +26,7 @@ export type ScenePlacementData = {
 
 export type SceneStructureData = {
   id: string
-  kind: 'wall' | 'door' | 'window'
+  kind: 'wall' | 'window'
   name: string
   xCm: number
   yCm: number
@@ -95,6 +95,7 @@ export function SpaceInterior3d({
           <ambientLight intensity={1.35} />
           <directionalLight position={[4, 7, 4]} intensity={2.1} />
           <SceneFloor layout={sceneLayout} />
+          <AutoOuterWalls layout={sceneLayout} />
           {structures.map((structure) => (
             <SceneStructureMesh key={structure.id} structure={structure} />
           ))}
@@ -120,18 +121,18 @@ export function SpaceInterior3d({
         </Canvas>
       </div>
       <div className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600">
-        구조물 {structures.length}개 · 하위 공간 {childSpaces.length}개
+        집 구조 {structures.length}개 · 안에 있는 공간 {childSpaces.length}개
         {items.length > 0 && ` · 직접 보관: ${items.map((item) => `${item.title} ${item.quantity}${item.unit ?? ''}`).join(' · ')}`}
       </div>
       {unplacedSpaces.length > 0 && (
         <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-          <p className="font-extrabold">미배치 공간</p>
+          <p className="font-extrabold">아직 자리를 정하지 않은 공간</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {unplacedSpaces.map((space) => <button key={space.id} type="button" onClick={() => setEditingSpace(space)} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-bold hover:bg-violet-600">{space.name} · 격자에 배치</button>)}
+            {unplacedSpaces.map((space) => <button key={space.id} type="button" onClick={() => setEditingSpace(space)} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-bold hover:bg-violet-600">{space.name} · 자리 정하기</button>)}
           </div>
         </div>
       )}
-      {editingSpace && <PlacementEditor space={editingSpace} layoutId={layoutId} placement={placements.find((entry) => entry.locationId === editingSpace.id) ?? null} onClose={() => setEditingSpace(null)} />}
+      {editingSpace && <PlacementEditor space={editingSpace} layoutId={layoutId} placement={placements.find((entry) => entry.locationId === editingSpace.id) ?? null} bounds={sceneLayout} onClose={() => setEditingSpace(null)} />}
     </section>
   )
 }
@@ -154,13 +155,37 @@ function SceneFloor({ layout }: { layout: SceneLayoutData }) {
   )
 }
 
+function AutoOuterWalls({ layout }: { layout: SceneLayoutData }) {
+  const width = layout.widthCm * centimetresToScene
+  const height = layout.heightCm * centimetresToScene
+  const depth = layout.depthCm * centimetresToScene
+  const thickness = Math.min(0.08, Math.max(0.025, Math.min(width, depth) * 0.02))
+  const walls = [
+    { position: [width / 2, height / 2, thickness / 2], size: [width, height, thickness] },
+    { position: [width / 2, height / 2, depth - thickness / 2], size: [width, height, thickness] },
+    { position: [thickness / 2, height / 2, depth / 2], size: [thickness, height, depth] },
+    { position: [width - thickness / 2, height / 2, depth / 2], size: [thickness, height, depth] },
+  ]
+
+  return (
+    <group>
+      {walls.map((wall, index) => (
+        <mesh key={index} position={wall.position as [number, number, number]}>
+          <boxGeometry args={wall.size as [number, number, number]} />
+          <meshStandardMaterial color="#cbd5e1" transparent opacity={0.18} />
+          <Edges color="#94a3b8" threshold={15} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
 function SceneStructureMesh({ structure }: { structure: SceneStructureData }) {
   const width = structure.widthCm * centimetresToScene
   const height = structure.heightCm * centimetresToScene
   const depth = structure.depthCm * centimetresToScene
   const color = {
     wall: '#c4b5fd',
-    door: '#f59e0b',
     window: '#38bdf8',
   }[structure.kind]
 
@@ -236,31 +261,132 @@ function ChildSpaceBlock({
   )
 }
 
-function PlacementEditor({ space, layoutId, placement, onClose }: { space: ChildSpace; layoutId: string | null; placement: ScenePlacementData | null; onClose: () => void }) {
+export function PlacementEditor({
+  space,
+  layoutId,
+  placement,
+  bounds,
+  onClose,
+}: {
+  space: ChildSpace
+  layoutId: string | null
+  placement: ScenePlacementData | null
+  bounds: SceneLayoutData | null
+  onClose: () => void
+}) {
   const [message, setMessage] = useState<string | null>(null)
   const router = useRouter()
-  const [draft, setDraft] = useState({ x: placement?.xCm ?? 10, y: placement?.yCm ?? 0, z: placement?.zCm ?? 10, width: placement?.widthCm ?? 100, height: placement?.heightCm ?? 100, depth: placement?.depthCm ?? 80 })
+  const [draft, setDraft] = useState({
+    x: placement?.xCm ?? 0,
+    y: placement?.zCm ?? 0,
+    z: placement?.yCm ?? 0,
+    width: placement?.widthCm ?? 100,
+    height: placement?.heightCm ?? 100,
+    depth: placement?.depthCm ?? 80,
+  })
+  const [isDuplex, setIsDuplex] = useState((placement?.yCm ?? 0) > 0)
+
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!layoutId) { setMessage('이 공간의 3D 장면을 먼저 만들어야 합니다.'); return }
+    if (!layoutId) {
+      setMessage('이 공간의 3D 장면을 먼저 만들어야 합니다.')
+      return
+    }
+
     const numbers = [draft.x, draft.y, draft.z, draft.width, draft.height, draft.depth]
-    if (numbers.some((value) => !Number.isInteger(value) || value < 0) || numbers.slice(3).some((value) => value < 1)) { setMessage('모든 값은 정수 cm여야 합니다.'); return }
-    const [x, y, z, width, height, depth] = numbers
-    const payload = { layout_id: layoutId, location_id: space.id, x_cm: x, y_cm: y, z_cm: z, width_cm: width, height_cm: height, depth_cm: depth }
-    const query = placement ? createClient().from('space_placements').update(payload).eq('id', placement.id) : createClient().from('space_placements').insert(payload)
+    if (numbers.some((value) => !Number.isInteger(value) || value < 0) || numbers.slice(3).some((value) => value < 1)) {
+      setMessage('모든 값은 정수 cm여야 합니다.')
+      return
+    }
+
+    if (bounds && (
+      draft.x + draft.width > bounds.widthCm ||
+      draft.y + draft.depth > bounds.depthCm ||
+      (isDuplex && draft.z + draft.height > bounds.heightCm)
+    )) {
+      setMessage('이 공간 안에 들어오도록 위치와 크기를 조정해 주세요.')
+      return
+    }
+
+    const payload = {
+      layout_id: layoutId,
+      location_id: space.id,
+      x_cm: draft.x,
+      y_cm: isDuplex ? draft.z : 0,
+      z_cm: draft.y,
+      width_cm: draft.width,
+      height_cm: draft.height,
+      depth_cm: draft.depth,
+    }
+    const query = placement
+      ? createClient().from('space_placements').update(payload).eq('id', placement.id)
+      : createClient().from('space_placements').insert(payload)
     const { error } = await query
-    if (error) { setMessage(error.message); return }
-    onClose(); router.refresh()
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+
+    onClose()
+    router.refresh()
   }
-  return <div className="absolute inset-0 z-10 grid place-items-center bg-slate-950/80 p-4"><form onSubmit={save} className="w-full max-w-md rounded-2xl bg-white p-4 text-slate-900 shadow-xl"><div className="flex items-center justify-between"><h3 className="font-extrabold">{space.name} 3D 배치</h3><button type="button" onClick={onClose} className="text-sm font-bold text-slate-500">닫기</button></div><DragPlacementCanvas draft={draft} onChange={setDraft} /><p className="mt-3 text-xs font-bold text-slate-600">드래그 결과 · 아래에서 1cm 단위 정밀 조정</p><div className="mt-2 grid grid-cols-3 gap-2">{[['x','X'],['y','Y'],['z','Z'],['width','가로'],['height','높이'],['depth','세로']].map(([key,label]) => <label key={key} className="text-xs font-bold">{label}<input type="number" min="0" value={draft[key as keyof typeof draft]} onChange={(event) => setDraft({ ...draft, [key]: Number(event.target.value) })} className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5" /></label>)}</div><p className="mt-2 text-xs text-slate-500">모든 값은 cm입니다.</p>{message && <p className="mt-2 text-xs font-bold text-rose-700">{message}</p>}<button className="mt-4 w-full rounded-xl bg-violet-600 py-2 text-sm font-extrabold text-white">배치 저장</button></form></div>
+
+  const fields = [
+    ['x', '좌표 X', bounds ? Math.max(0, bounds.widthCm - draft.width) : undefined],
+    ['y', '좌표 Y', bounds ? Math.max(0, bounds.depthCm - draft.depth) : undefined],
+    ['width', '가로 X', bounds?.widthCm],
+    ['depth', '세로 Y', bounds?.depthCm],
+  ] as const
+
+  return (
+    <div className="absolute inset-0 z-10 grid place-items-center bg-slate-950/80 p-4">
+      <form onSubmit={save} className="w-full max-w-md rounded-2xl bg-white p-4 text-slate-900 shadow-xl">
+        <div className="flex items-center justify-between">
+          <h3 className="font-extrabold">{space.name} 3D 자리 정하기</h3>
+          <button type="button" onClick={onClose} className="text-sm font-bold text-slate-500">닫기</button>
+        </div>
+        <DragPlacementCanvas draft={draft} bounds={bounds} onChange={setDraft} />
+        <p className="mt-3 text-xs font-bold text-slate-600">드래그 결과 · 아래에서 1cm 단위 정밀 조정</p>
+        <div className="mt-2 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            {fields.slice(0, 2).map(([key, label, max]) => (
+              <NumberInput key={key} label={`${label} · 최대 ${max ?? '?'}cm`} min={0} max={max} value={draft[key]} onChange={(value) => setDraft({ ...draft, [key]: value })} />
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {fields.slice(2).map(([key, label, max]) => (
+              <NumberInput key={key} label={`${label} · 최대 ${max ?? '?'}cm`} min={1} max={max} value={draft[key]} onChange={(value) => setDraft({ ...draft, [key]: value })} />
+            ))}
+          </div>
+        </div>
+        <label className="mt-3 flex items-center gap-2 text-xs font-bold">
+          <input type="checkbox" checked={isDuplex} onChange={(event) => { setIsDuplex(event.target.checked); if (!event.target.checked) setDraft({ ...draft, z: 0 }) }} />
+          복층 구조입니다
+        </label>
+        {isDuplex && (
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <NumberInput label={`공간 높이 · 최대 ${bounds?.heightCm ?? '?'}cm`} min={1} max={bounds?.heightCm} value={draft.height} onChange={(height) => setDraft({ ...draft, height })} />
+            <NumberInput label={`공간 좌표 Z · 최대 ${bounds ? Math.max(0, bounds.heightCm - draft.height) : '?'}cm`} min={0} max={bounds ? Math.max(0, bounds.heightCm - draft.height) : undefined} value={draft.z} onChange={(z) => setDraft({ ...draft, z })} />
+          </div>
+        )}
+        {message && <p className="mt-2 text-xs font-bold text-rose-700">{message}</p>}
+        <button className="mt-4 w-full rounded-xl bg-violet-600 py-2 text-sm font-extrabold text-white">자리 저장</button>
+      </form>
+    </div>
+  )
 }
 
-function DragPlacementCanvas({ draft, onChange }: { draft: { x: number; y: number; z: number; width: number; height: number; depth: number }; onChange: (draft: { x: number; y: number; z: number; width: number; height: number; depth: number }) => void }) {
+function NumberInput({ label, min, max, value, onChange }: { label: string; min: number; max?: number; value: number; onChange: (value: number) => void }) {
+  return <label className="text-xs font-bold">{label}<input type="number" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5" /></label>
+}
+
+function DragPlacementCanvas({ draft, bounds, onChange }: { draft: { x: number; y: number; z: number; width: number; height: number; depth: number }; bounds: SceneLayoutData | null; onChange: (draft: { x: number; y: number; z: number; width: number; height: number; depth: number }) => void }) {
   const canvasRef = useRef<HTMLDivElement>(null)
-  const startRef = useRef<{ x: number; z: number } | null>(null)
-  const centimetresPerPixel = 4
-  function point(event: PointerEvent<HTMLDivElement>) { const rect = canvasRef.current!.getBoundingClientRect(); return { x: Math.max(0, Math.round((event.clientX - rect.left) * centimetresPerPixel)), z: Math.max(0, Math.round((event.clientY - rect.top) * centimetresPerPixel)) } }
+  const startRef = useRef<{ x: number; y: number } | null>(null)
+  const widthCm = bounds?.widthCm ?? 600
+  const depthCm = bounds?.depthCm ?? 400
+  function point(event: PointerEvent<HTMLDivElement>) { const rect = canvasRef.current!.getBoundingClientRect(); return { x: Math.max(0, Math.round((event.clientX - rect.left) / rect.width * widthCm)), y: Math.max(0, Math.round((event.clientY - rect.top) / rect.height * depthCm)) } }
   function start(event: PointerEvent<HTMLDivElement>) { event.currentTarget.setPointerCapture(event.pointerId); startRef.current = point(event) }
-  function end(event: PointerEvent<HTMLDivElement>) { if (!startRef.current) return; const next = point(event); const x = Math.min(startRef.current.x, next.x); const z = Math.min(startRef.current.z, next.z); onChange({ ...draft, x, z, width: Math.max(1, Math.abs(next.x - startRef.current.x)), depth: Math.max(1, Math.abs(next.z - startRef.current.z)) }); startRef.current = null }
-  return <div ref={canvasRef} onPointerDown={start} onPointerUp={end} className="mt-4 h-40 cursor-crosshair rounded-xl border-2 border-violet-200 bg-[linear-gradient(#ede9fe_1px,transparent_1px),linear-gradient(90deg,#ede9fe_1px,transparent_1px)] [background-size:10px_10px]"><div style={{ left: `${draft.x / centimetresPerPixel}px`, top: `${draft.z / centimetresPerPixel}px`, width: `${draft.width / centimetresPerPixel}px`, height: `${draft.depth / centimetresPerPixel}px` }} className="pointer-events-none relative border-2 border-violet-600 bg-violet-500/30" /></div>
+  function end(event: PointerEvent<HTMLDivElement>) { if (!startRef.current) return; const next = point(event); const x = Math.min(startRef.current.x, next.x); const y = Math.min(startRef.current.y, next.y); onChange({ ...draft, x, y, width: Math.max(1, Math.abs(next.x - startRef.current.x)), depth: Math.max(1, Math.abs(next.y - startRef.current.y)) }); startRef.current = null }
+  return <div ref={canvasRef} onPointerDown={start} onPointerUp={end} style={{ aspectRatio: `${widthCm} / ${depthCm}` }} className="mt-4 w-full cursor-crosshair rounded-xl border-2 border-violet-200 bg-[linear-gradient(#ede9fe_1px,transparent_1px),linear-gradient(90deg,#ede9fe_1px,transparent_1px)] [background-size:10px_10px]"><div style={{ left: `${draft.x / widthCm * 100}%`, top: `${draft.y / depthCm * 100}%`, width: `${draft.width / widthCm * 100}%`, height: `${draft.depth / depthCm * 100}%` }} className="pointer-events-none relative border-2 border-violet-600 bg-violet-500/30" /></div>
 }

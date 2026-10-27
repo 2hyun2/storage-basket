@@ -31,6 +31,7 @@ export function SpaceOverview3d({
   homeLayout,
   placements,
 }: SpaceOverview3dProps) {
+  const router = useRouter()
   const rootSpaces = spaces.filter((space) => space.parentId === null)
   const homeWidth = homeLayout ? homeLayout.widthCm * 0.01 : 9
   const homeDepth = homeLayout ? homeLayout.depthCm * 0.01 : 6
@@ -80,7 +81,8 @@ export function SpaceOverview3d({
       </div>
       {unplacedRootSpaces.length > 0 && (
         <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
-          아직 3D에 배치하지 않은 공간: {unplacedRootSpaces.map((space) => space.name).join(' · ')}
+          <p>아직 자리를 정하지 않은 공간</p>
+          <div className="mt-2 flex flex-wrap gap-2">{unplacedRootSpaces.map((space) => <button key={space.id} type="button" onClick={() => router.push(`/app/space/${space.id}?draw=1`)} className="rounded-lg bg-violet-100 px-2 py-1 font-bold text-violet-700">{space.name} · 3D 자리 정하기</button>)}</div>
         </div>
       )}
     </div>

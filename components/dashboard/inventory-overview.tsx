@@ -58,7 +58,7 @@ export function InventoryOverview({ displayName }: InventoryOverviewProps) {
   const totalQuantity = items.reduce((total, item) => total + item.quantity, 0)
 
   return (
-    <main className="min-h-dvh bg-[#f8f7ff] px-4 py-6 text-slate-950 sm:px-6 sm:py-8">
+    <main className="min-h-dvh bg-[#f8f7ff] px-2 py-4 text-slate-950 sm:px-4 sm:py-4">
       <section className="mx-auto max-w-5xl">
         <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
@@ -74,7 +74,7 @@ export function InventoryOverview({ displayName }: InventoryOverviewProps) {
           </Link>
         </header>
 
-        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+        <section className="mt-4 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-lg font-extrabold tracking-tight text-slate-900">빠른 물건 찾기</h2>
@@ -126,7 +126,7 @@ export function InventoryOverview({ displayName }: InventoryOverviewProps) {
           <StatCard icon={Box} label="물건 수량 합계" value={`${totalQuantity}개`} tone="amber" />
         </section>
 
-        <section className="mt-8 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+        <section className="mt-4 grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
           <Home3dPreview
             spaces={spaces}
             items={items}
@@ -243,7 +243,7 @@ function Home3dPreview({
   placements: SpacePlacement[]
 }) {
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+    <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-sm font-extrabold text-slate-900">우리 집 공간</p>
@@ -273,7 +273,7 @@ function Home3dPreview({
 
 function QuickLinks() {
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+    <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
       <p className="text-sm font-extrabold text-slate-900">바로가기</p>
       <div className="mt-4 space-y-3">
         <Link href="/app/space" className="flex items-center gap-3 rounded-2xl bg-violet-50 p-4 transition hover:bg-violet-100">

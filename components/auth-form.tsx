@@ -63,7 +63,7 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
   }
 
   return (
-    <form action={handleSubmit} className="mt-7 space-y-4">
+    <form action={handleSubmit} className="mt-4 space-y-3">
       <input type="hidden" name="next" value={nextPath ?? ''} />
       {!isLogin && (
         <Field
@@ -91,7 +91,7 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
         inputRef={passwordInputRef}
       />
       {isLogin && (
-        <div className="space-y-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        <div className="space-y-2 rounded-2xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
           <CheckField
             name="rememberEmail"
             checked={rememberEmail}
@@ -123,7 +123,7 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
         disabled={pending}
         className="w-full rounded-2xl bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60"
       >
-        {pending ? '처리 중…' : isLogin ? '로그인' : '수납바구니 만들기'}
+        {pending ? '처리 중…' : isLogin ? '로그인' : '우리집 공간록 만들기'}
       </button>
       <p className="text-center text-sm text-slate-500">
         {isLogin ? '처음이신가요? ' : '이미 계정이 있나요? '}

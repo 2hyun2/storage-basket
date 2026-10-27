@@ -29,7 +29,7 @@ export function PlanMap({ layout }: PlanMapProps) {
       </div>
 
       <p className="mt-4 px-1 text-xs leading-5 text-slate-400">
-        샘플 평면도입니다. 모든 구역은 부모 안에서 1칸 이상의 여백을 유지하며 서로 겹치지 않습니다.
+        샘플 평면도입니다. 모든 구역은 이 공간 안에 들어오며 서로 겹치지 않습니다.
       </p>
     </div>
   )

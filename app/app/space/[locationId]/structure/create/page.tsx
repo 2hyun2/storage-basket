@@ -28,10 +28,12 @@ export default async function StructureCreatePage({
           {location.name}으로 돌아가기
         </Link>
         <div className="mt-6 rounded-3xl border border-violet-100 bg-white p-4 shadow-sm sm:p-6">
-          <p className="flex items-center gap-2 text-sm font-bold text-violet-600"><Construction size={17} /> 구조물 등록</p>
-          <h1 className="mt-2 text-3xl font-extrabold">{location.name} 구조 설계</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-500">벽을 먼저 만들고, 문·창문은 연결할 벽을 선택해 cm 단위로 배치합니다.</p>
-          <div className="mt-8"><StructureCreateForm locationId={location.id} /></div>
+          <p className="flex items-center gap-2 text-sm font-bold text-violet-600"><Construction size={17} /> 집 구조 꾸미기</p>
+          <h1 className="mt-2 text-3xl font-extrabold">{location.name} 벽과 창문</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-500">이 공간 안에서 벽과 창문의 위치·크기를 cm 단위로 정합니다. 통로는 벽 구간을 비워 표현합니다.</p>
+          <div className="mt-8">
+            <StructureCreateForm locationId={location.id} locationName={location.name} />
+          </div>
         </div>
       </section>
     </main>

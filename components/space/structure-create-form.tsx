@@ -1,149 +1,225 @@
 'use client'
 
-import { useEffect, useState, type FormEvent } from 'react'
-import { DoorOpen, PanelTop, RectangleHorizontal } from 'lucide-react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { PanelTop, Pencil, Plus, RectangleHorizontal } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { SpaceInterior3d, type SceneLayoutData, type SceneStructureData } from '@/components/space/space-interior-3d'
 import { createClient } from '@/lib/supabase/client'
 
-type StructureKind = 'wall' | 'door' | 'window'
+type StructureKind = 'wall' | 'window'
+type StructureRecord = SceneStructureData
+type StructureDraft = { name: string; planX: number; planY: number; sizeX: number; sizeY: number }
 
-type WallOption = {
-  id: string
-  name: string
-}
+const emptyDraft: StructureDraft = { name: '', planX: 0, planY: 0, sizeX: 90, sizeY: 10 }
 
-export function StructureCreateForm({ locationId }: { locationId: string }) {
+export function StructureCreateForm({ locationId, locationName }: { locationId: string; locationName: string }) {
   const [kind, setKind] = useState<StructureKind>('wall')
-  const [walls, setWalls] = useState<WallOption[]>([])
   const [layoutId, setLayoutId] = useState<string | null>(null)
+  const [bounds, setBounds] = useState<SceneLayoutData | null>(null)
+  const [structures, setStructures] = useState<StructureRecord[]>([])
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [draft, setDraft] = useState<StructureDraft>(emptyDraft)
   const [message, setMessage] = useState<string | null>(null)
   const router = useRouter()
 
-  useEffect(() => {
-    async function loadScene() {
-      const supabase = createClient()
-      const { data: layout } = await supabase
-        .from('space_layouts')
-        .select('id')
-        .eq('scene_location_id', locationId)
-        .maybeSingle()
+  const loadScene = useCallback(async () => {
+    const supabase = createClient()
+    const { data: layout, error: layoutError } = await supabase
+      .from('space_layouts')
+      .select('id, width_cm, depth_cm, height_cm')
+      .eq('scene_location_id', locationId)
+      .maybeSingle()
 
-      if (!layout) {
-        setMessage('이 공간에는 아직 3D 장면이 없습니다. 먼저 공간 배치값을 등록해 주세요.')
-        return
-      }
-
-      setLayoutId(layout.id)
-      const { data: wallRows } = await supabase
-        .from('scene_structures')
-        .select('id, name')
-        .eq('layout_id', layout.id)
-        .eq('kind', 'wall')
-        .order('created_at')
-      setWalls(wallRows ?? [])
+    if (layoutError || !layout) {
+      setMessage('이 공간은 아직 3D로 정해진 자리가 없습니다. 먼저 공간의 위치와 크기를 정해 주세요.')
+      return
     }
 
-    void loadScene()
+    setLayoutId(layout.id)
+    setBounds({ widthCm: Number(layout.width_cm), depthCm: Number(layout.depth_cm), heightCm: Number(layout.height_cm) })
+
+    const { data: rows, error: structureError } = await supabase
+      .from('scene_structures')
+      .select('id, kind, name, x_cm, y_cm, z_cm, width_cm, height_cm, depth_cm')
+      .eq('layout_id', layout.id)
+      .order('created_at')
+
+    if (structureError) {
+      setMessage(structureError.message)
+      return
+    }
+
+    setStructures((rows ?? []).map((row) => ({
+      id: row.id,
+      kind: row.kind as StructureKind,
+      name: row.name,
+      xCm: Number(row.x_cm),
+      yCm: Number(row.y_cm),
+      zCm: Number(row.z_cm),
+      widthCm: Number(row.width_cm),
+      heightCm: Number(row.height_cm),
+      depthCm: Number(row.depth_cm),
+    })))
   }, [locationId])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void loadScene() }, 0)
+    return () => window.clearTimeout(timer)
+  }, [loadScene])
+
+  function startNew(nextKind: StructureKind = kind) {
+    setKind(nextKind)
+    setEditingId(null)
+    setDraft({ ...emptyDraft, sizeX: nextKind === 'wall' ? 90 : 80 })
+    setMessage(null)
+  }
+
+  function startEdit(structure: StructureRecord) {
+    setKind(structure.kind)
+    setEditingId(structure.id)
+    setDraft({
+      name: structure.name,
+      planX: structure.xCm,
+      planY: structure.zCm,
+      sizeX: structure.widthCm,
+      sizeY: structure.depthCm,
+    })
+    setMessage(null)
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setMessage(null)
-
-    if (!layoutId) {
-      setMessage('3D 장면을 불러오지 못했습니다.')
+    if (!layoutId || !bounds) {
+      setMessage('현재 공간의 3D 화면을 불러오지 못했습니다.')
       return
     }
 
-    const formData = new FormData(event.currentTarget)
-    const name = String(formData.get('name') ?? '').trim() || defaultName(kind, walls.length + 1)
-    const parentWallId = String(formData.get('parentWallId') ?? '') || null
-    const values = ['x', 'y', 'z', 'width', 'height', 'depth'].map((field) => Number(formData.get(field)))
-
-    if (values.some((value) => !Number.isInteger(value) || value < 0) || values.slice(3).some((value) => value < 1)) {
-      setMessage('좌표와 크기는 0 이상의 정수 cm이며, 크기는 1cm 이상이어야 합니다.')
+    const values = [draft.planX, draft.planY, draft.sizeX, draft.sizeY]
+    if (values.some((value) => !Number.isInteger(value)) || draft.planX < 0 || draft.planY < 0 || draft.sizeX < 1 || draft.sizeY < 1) {
+      setMessage('좌표와 크기는 정수 cm로 입력해 주세요. 크기는 1cm 이상이어야 합니다.')
       return
     }
 
-    if (kind !== 'wall' && !parentWallId) {
-      setMessage('문·창문은 연결할 벽을 선택해야 합니다.')
+    const maxX = bounds.widthCm - draft.sizeX
+    const maxY = bounds.depthCm - draft.sizeY
+    if (draft.sizeX > bounds.widthCm || draft.sizeY > bounds.depthCm || draft.planX > maxX || draft.planY > maxY) {
+      setMessage(`이 공간 안에 들어오도록 정해 주세요. 현재 시작할 수 있는 최대값은 X ${Math.max(0, maxX)}cm · Y ${Math.max(0, maxY)}cm입니다.`)
       return
     }
 
-    const [xCm, yCm, zCm, widthCm, heightCm, depthCm] = values
-    const { error } = await createClient().from('scene_structures').insert({
+    const name = draft.name.trim() || defaultName(kind, structures.filter((entry) => entry.kind === kind).length + 1)
+    const payload = {
       layout_id: layoutId,
       kind,
       name,
-      parent_wall_id: parentWallId,
-      x_cm: xCm,
-      y_cm: yCm,
-      z_cm: zCm,
-      width_cm: widthCm,
-      height_cm: heightCm,
-      depth_cm: depthCm,
-    })
-
+      x_cm: draft.planX,
+      y_cm: 0,
+      z_cm: draft.planY,
+      width_cm: draft.sizeX,
+      height_cm: kind === 'window' ? 110 : bounds.heightCm,
+      depth_cm: draft.sizeY,
+    }
+    const supabase = createClient()
+    const query = editingId
+      ? supabase.from('scene_structures').update(payload).eq('id', editingId)
+      : supabase.from('scene_structures').insert(payload)
+    const { error } = await query
     if (error) {
       setMessage(error.message)
       return
     }
 
-    router.push(`/app/space/${locationId}`)
+    await loadScene()
+    startNew(kind)
     router.refresh()
   }
 
-  const requiresWall = kind !== 'wall'
+  const maxSizeX = bounds ? bounds.widthCm : null
+  const maxSizeY = bounds ? bounds.depthCm : null
+  const maxStartX = bounds ? Math.max(0, bounds.widthCm - draft.sizeX) : null
+  const maxStartY = bounds ? Math.max(0, bounds.depthCm - draft.sizeY) : null
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <KindButton kind="wall" selected={kind === 'wall'} label="벽" icon={RectangleHorizontal} onClick={setKind} />
-        <KindButton kind="door" selected={kind === 'door'} label="문" icon={DoorOpen} onClick={setKind} />
-        <KindButton kind="window" selected={kind === 'window'} label="창문" icon={PanelTop} onClick={setKind} />
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-violet-100 bg-violet-50/60 p-3">
+        <p className="text-sm font-extrabold text-violet-950">이 공간 미리 보기</p>
+        <p className="mt-1 text-xs leading-5 text-slate-600">아래 3D 화면을 보면서 벽과 창문 위치를 정할 수 있습니다.</p>
       </div>
 
-      <Field label="표시 이름" name="name" placeholder={kind === 'wall' ? '예: 안방 북쪽 벽' : kind === 'door' ? '예: 안방 출입문' : '예: 침대 옆 창문'} required={false} />
+      <SpaceInterior3d spaceName={locationName} childSpaces={[]} items={[]} layout={bounds} layoutId={null} placements={[]} structures={structures} />
 
-      {requiresWall && (
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-bold text-slate-700">연결할 벽</span>
-          <select name="parentWallId" required className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm">
-            <option value="">벽을 선택하세요</option>
-            {walls.map((wall) => <option key={wall.id} value={wall.id}>{wall.name}</option>)}
-          </select>
-        </label>
+      {structures.length > 0 && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-extrabold">만들어 둔 벽과 창문</p>
+              <p className="mt-0.5 text-xs text-slate-500">선택하면 아래 입력값을 불러와 수정할 수 있습니다.</p>
+            </div>
+            <button type="button" onClick={() => startNew()} className="inline-flex items-center gap-1 rounded-xl bg-violet-600 px-3 py-2 text-xs font-extrabold text-white"><Plus size={14} /> 새로 등록</button>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {structures.map((structure) => (
+              <button key={structure.id} type="button" onClick={() => startEdit(structure)} className={`inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-bold ${editingId === structure.id ? 'border-violet-500 bg-violet-50 text-violet-800' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+                <Pencil size={13} /> {structure.name}
+              </button>
+            ))}
+          </div>
+        </section>
       )}
 
-      <div className="rounded-2xl bg-slate-50 p-4">
-        <p className="text-sm font-extrabold">cm 배치값</p>
-        <p className="mt-1 text-xs leading-5 text-slate-500">문·창문은 연결한 벽의 시작점 기준 상대 위치를 입력합니다.</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <Field label="X" name="x" type="number" min="0" defaultValue="0" />
-          <Field label="Y" name="y" type="number" min="0" defaultValue="0" />
-          <Field label="Z" name="z" type="number" min="0" defaultValue="0" />
-          <Field label="너비" name="width" type="number" min="1" defaultValue="90" />
-          <Field label="높이" name="height" type="number" min="1" defaultValue={kind === 'window' ? '110' : '210'} />
-          <Field label="두께" name="depth" type="number" min="1" defaultValue="10" />
+      <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-extrabold">{editingId ? '벽·창문 고치기' : '벽·창문 추가'}</p>
+            <p className="mt-0.5 text-xs text-slate-500">평면의 X/Y를 기준으로 cm 단위로 배치합니다.</p>
+          </div>
+          {editingId && <button type="button" onClick={() => startNew()} className="text-xs font-bold text-violet-700">새 등록으로 전환</button>}
         </div>
-      </div>
 
-      {message && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm font-bold text-rose-700">{message}</p>}
-      <button className="w-full rounded-2xl bg-violet-600 px-4 py-2.5 text-sm font-extrabold text-white disabled:bg-violet-300" disabled={!layoutId}>
-        {kind === 'wall' ? '벽 저장' : kind === 'door' ? '문 저장' : '창문 저장'}
-      </button>
-    </form>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <KindButton kind="wall" selected={kind === 'wall'} label="벽" icon={RectangleHorizontal} onClick={startNew} />
+          <KindButton kind="window" selected={kind === 'window'} label="창문" icon={PanelTop} onClick={startNew} />
+        </div>
+
+        <Field label="표시 이름" value={draft.name} onChange={(name) => setDraft({ ...draft, name })} placeholder={kind === 'wall' ? '예: 거실 북쪽 벽' : '예: 거실 통창'} />
+
+        <div className="rounded-2xl bg-slate-50 p-3">
+          <p className="text-sm font-extrabold">cm 위치와 크기</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">X는 왼쪽→오른쪽, Y는 위쪽→아래쪽입니다. 창문은 벽의 자식이 아닌 별도 건축 영역이며, 문은 벽 구간을 비워 개구부로 표현합니다.</p>
+          <div className="mt-4 space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <NumberField label={`좌표 X · 최대 ${maxStartX ?? '?'}cm`} value={draft.planX} min={0} max={maxStartX ?? undefined} onChange={(planX) => setDraft({ ...draft, planX })} />
+              <NumberField label={`좌표 Y · 최대 ${maxStartY ?? '?'}cm`} value={draft.planY} min={0} max={maxStartY ?? undefined} onChange={(planY) => setDraft({ ...draft, planY })} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <NumberField label={`가로 X · 최대 ${maxSizeX ?? '?'}cm`} value={draft.sizeX} min={1} max={maxSizeX ?? undefined} onChange={(sizeX) => setDraft({ ...draft, sizeX })} />
+              <NumberField label={`세로 Y · 최대 ${maxSizeY ?? '?'}cm`} value={draft.sizeY} min={1} max={maxSizeY ?? undefined} onChange={(sizeY) => setDraft({ ...draft, sizeY })} />
+            </div>
+          </div>
+        </div>
+
+        {message && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm font-bold text-rose-700">{message}</p>}
+        <button className="w-full rounded-2xl bg-violet-600 px-4 py-2.5 text-sm font-extrabold text-white disabled:bg-violet-300" disabled={!layoutId}>
+          {editingId ? `${kind === 'wall' ? '벽' : '창문'} 수정 저장` : `${kind === 'wall' ? '벽' : '창문'} 저장`}
+        </button>
+      </form>
+    </div>
   )
 }
 
-function KindButton({ kind, selected, label, icon: Icon, onClick }: { kind: StructureKind; selected: boolean; label: string; icon: typeof DoorOpen; onClick: (kind: StructureKind) => void }) {
+function KindButton({ kind, selected, label, icon: Icon, onClick }: { kind: StructureKind; selected: boolean; label: string; icon: typeof PanelTop; onClick: (kind: StructureKind) => void }) {
   return <button type="button" onClick={() => onClick(kind)} className={`rounded-2xl border p-3 text-left ${selected ? 'border-violet-500 bg-violet-50 text-violet-800' : 'border-slate-200 bg-white text-slate-600'}`}><Icon size={18} /><span className="mt-2 block text-sm font-extrabold">{label}</span></button>
 }
 
-function Field({ label, name, type = 'text', min, defaultValue, placeholder, required = true }: { label: string; name: string; type?: 'text' | 'number'; min?: string; defaultValue?: string; placeholder?: string; required?: boolean }) {
-  return <label className="block"><span className="mb-1.5 block text-sm font-bold text-slate-700">{label}</span><input name={name} type={type} min={min} defaultValue={defaultValue} placeholder={placeholder} required={required} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" /></label>
+function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder: string }) {
+  return <label className="block"><span className="mb-1.5 block text-sm font-bold text-slate-700">{label}</span><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" /></label>
+}
+
+function NumberField({ label, value, min, max, onChange }: { label: string; value: number; min: number; max?: number; onChange: (value: number) => void }) {
+  return <label className="block"><span className="mb-1.5 block text-xs font-bold text-slate-700">{label}</span><input type="number" value={value} min={min} max={max} onChange={(event) => onChange(Number(event.target.value))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" /></label>
 }
 
 function defaultName(kind: StructureKind, number: number) {
-  return `${kind === 'wall' ? '벽' : kind === 'door' ? '문' : '창문'} ${number}`
+  return `${kind === 'wall' ? '벽' : '창문'} ${number}`
 }

@@ -15,7 +15,7 @@ export function AppHeader({ displayName, email }: AppHeaderProps) {
           <span className="grid size-9 place-items-center rounded-xl bg-violet-600 text-white">
             <Archive size={18} strokeWidth={2.5} />
           </span>
-          수납바구니
+          우리집 공간록
         </Link>
 
         <div className="flex items-center gap-2">

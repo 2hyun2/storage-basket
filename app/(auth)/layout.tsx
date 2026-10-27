@@ -9,5 +9,5 @@ export default async function AuthLayout({ children }: Readonly<{ children: Reac
     redirect('/app')
   }
 
-  return <main className="grid min-h-dvh place-items-center bg-[#f8f7ff] px-4 py-8">{children}</main>
+  return <main className="grid min-h-dvh place-items-center bg-[#f8f7ff] px-2 py-4 sm:px-4">{children}</main>
 }

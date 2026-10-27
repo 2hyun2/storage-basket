@@ -57,7 +57,7 @@ export function HomeLayoutSetup() {
         <div>
           <p className="text-sm font-bold text-violet-700">첫 공간 설계</p>
           <h2 className="mt-1 text-xl font-extrabold">우리 집 전체 크기부터 정해 주세요</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-500">이 값이 모든 방과 구조물이 들어갈 최상위 cm 격자의 크기가 됩니다.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-500">이 값이 모든 방과 집 구조를 그릴 가장 바깥쪽 크기가 됩니다.</p>
         </div>
       </div>
       <form onSubmit={saveHomeLayout} className="mt-5 grid gap-3 sm:grid-cols-3">

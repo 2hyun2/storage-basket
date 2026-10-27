@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: '수납바구니',
+  title: '우리집 공간록',
   description: 'Home 기반 물건 관리 서비스',
 }
 

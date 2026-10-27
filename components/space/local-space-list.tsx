@@ -51,7 +51,7 @@ export function LocalSpaceList() {
                   </span>
                   <span className="min-w-0">
                     <strong className="block truncate text-sm text-slate-900">{space.name}</strong>
-                    <span className="block truncate text-xs text-slate-500">부모: {parentName}</span>
+                    <span className="block truncate text-xs text-slate-500">들어 있는 곳: {parentName}</span>
                   </span>
                 </span>
                 <span className="shrink-0 text-xs font-bold text-violet-700">

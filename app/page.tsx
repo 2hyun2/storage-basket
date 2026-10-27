@@ -2,12 +2,13 @@ import {
   Archive,
   Battery,
   Box,
-  History,
+  Cuboid,
   MapPinned,
   Search,
   UsersRound,
   type LucideIcon,
 } from 'lucide-react'
+import { LandingHomeDemo } from '@/components/landing-home-demo'
 
 type Feature = {
   number: string
@@ -31,9 +32,9 @@ const features: Feature[] = [
   },
   {
     number: '03',
-    title: '바뀐 내용 다시 보기',
-    description: '누가 언제 옮기고 수정했는지 기록으로 확인해요.',
-    icon: History,
+    title: '3D로 꾸미며 정리하기',
+    description: '우리 집 격자 위에 방과 수납공간을 직접 배치해요.',
+    icon: Cuboid,
   },
 ]
 
@@ -48,46 +49,52 @@ export default function HomePage() {
         </div>
 
         <nav className="mx-auto flex max-w-[1440px] items-center justify-between">
-          <a href="#top" className="flex items-center gap-2 font-bold tracking-tight" aria-label="수납바구니 첫 화면">
+          <a href="#top" className="flex items-center gap-2 font-bold tracking-tight" aria-label="우리집 공간록 첫 화면">
             <span className="grid size-9 place-items-center rounded-xl bg-white text-violet-700 shadow-lg shadow-violet-950/20">
               <Archive size={19} strokeWidth={2.5} />
             </span>
-            <span>수납바구니</span>
+            <span>우리집 공간록</span>
           </a>
           <a href="/login" className="rounded-full border border-white/20 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-white/10">로그인</a>
         </nav>
 
         <div id="top" className="mx-auto max-w-[1440px] pt-14 sm:pt-20">
-          <p className="inline-flex rounded-full border border-violet-300/30 bg-white/10 px-3 py-1.5 text-xs font-semibold text-violet-100">우리 집 물건 찾기</p>
-          <h1 className="mt-5 max-w-xl text-[2.55rem] font-extrabold leading-[1.13] tracking-[-0.06em] sm:text-6xl">
-            어디에 뒀더라?
+          <p className="inline-flex rounded-full border border-violet-300/30 bg-white/10 px-3 py-1.5 text-xs font-semibold text-violet-100">3D로 꾸미며 정리하는 우리 집 기록</p>
+          <h1 className="mt-5 text-[2.55rem] font-extrabold leading-[1.13] tracking-[-0.06em] sm:text-6xl">
+            내 공간을 직접 만들고,
             <br />
-            <span className="text-violet-300">이제 바로 찾으세요.</span>
+            <span className="text-violet-300">물건의 자리를 기억하세요.</span>
           </h1>
           <p className="mt-5 max-w-md text-[0.98rem] leading-7 text-violet-100/80 sm:text-lg">
-            물건과 보관 위치를 기록하고, 함께 사는 사람과 한눈에 관리하는 나만의 수납 지도.
+            집의 크기부터 방·수납공간·물건까지. 3D 격자 위에서 꾸미듯 배치하고 함께 기록하는 우리 집 공간록.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <a href="/signup" className="rounded-2xl bg-white px-5 py-3.5 text-center text-sm font-bold text-violet-800 shadow-xl shadow-violet-950/30 transition hover:-translate-y-0.5">내 수납바구니 만들기</a>
+            <a href="/signup" className="rounded-2xl bg-white px-5 py-3.5 text-center text-sm font-bold text-violet-800 shadow-xl shadow-violet-950/30 transition hover:-translate-y-0.5">우리집 공간록 만들기</a>
             <a href="#features" className="rounded-2xl border border-white/20 px-5 py-3.5 text-center text-sm font-bold text-white transition hover:bg-white/10">어떻게 쓰나요?</a>
           </div>
 
-          <div className="relative mx-auto mt-12 max-w-sm rounded-[2rem] border border-white/15 bg-white p-3 shadow-2xl shadow-black/30 sm:mx-0 sm:mt-16">
+          <div className="mt-8 grid overflow-hidden rounded-3xl border border-white/15 bg-white shadow-2xl shadow-black/30 md:grid-cols-[minmax(0,1.4fr)_minmax(280px,.8fr)]">
+          <LandingHomeDemo />
+          <div className="relative min-w-0 border-t border-slate-200 bg-white p-3 md:border-l md:border-t-0">
             <div className="overflow-hidden rounded-[1.5rem] bg-slate-50 text-slate-900">
               <div className="flex items-center justify-between bg-white px-4 py-3">
                 <div className="flex items-center gap-2">
                   <span className="grid size-7 place-items-center rounded-lg bg-violet-600 text-white">
                     <Archive size={15} strokeWidth={2.5} />
                   </span>
-                  <div><p className="text-xs font-bold">수납바구니</p><p className="text-[10px] text-slate-400">우리 집 물건 찾기</p></div>
+                  <div><p className="text-xs font-bold">우리집 공간록</p><p className="text-[10px] text-slate-400">우리 집 물건 찾기</p></div>
                 </div>
                 <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">정리 중</span>
               </div>
               <div className="p-4">
-                <div className="rounded-xl bg-violet-50 p-3">
-                  <p className="text-[11px] font-semibold text-violet-600">오늘 찾은 물건</p>
-                  <p className="mt-1 text-base font-bold tracking-tight">AA 건전지</p>
-                  <p className="mt-1 text-[11px] text-slate-500">거실 · TV장 오른쪽 서랍</p>
+                <div className="rounded-xl border border-violet-100 bg-violet-50 p-3">
+                  <div className="flex items-center justify-between"><p className="text-[11px] font-semibold text-violet-600">3D 공간 설계</p><Cuboid size={15} className="text-violet-600" /></div>
+                  <div className="mt-2 grid aspect-[16/8] grid-cols-6 grid-rows-4 gap-1 rounded-lg border border-violet-200 bg-white p-1 [background-image:linear-gradient(#ede9fe_1px,transparent_1px),linear-gradient(90deg,#ede9fe_1px,transparent_1px)] [background-size:10px_10px]">
+                    <span className="col-span-3 row-span-4 rounded-md border border-violet-300 bg-violet-300/50 p-1 text-[9px] font-bold text-violet-900">거실</span>
+                    <span className="col-span-3 row-span-2 rounded-md border border-sky-300 bg-sky-200/60 p-1 text-[9px] font-bold text-sky-900">주방</span>
+                    <span className="col-span-3 row-span-2 rounded-md border border-rose-300 bg-rose-200/60 p-1 text-[9px] font-bold text-rose-900">안방</span>
+                  </div>
+                  <p className="mt-2 text-[10px] text-slate-500">방을 배치하고, 내부 수납공간까지 이어서 기록</p>
                 </div>
                 <div className="mt-4 flex items-center justify-between"><p className="text-xs font-bold">내 공간</p><span className="text-[10px] font-medium text-violet-600">전체 보기</span></div>
                 <div className="mt-2 space-y-2">
@@ -97,6 +104,7 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </section>
@@ -120,10 +128,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-5 mb-5 rounded-3xl bg-violet-600 px-6 py-10 text-white sm:mx-auto sm:mb-8 sm:max-w-[1376px] sm:px-10">
-        <p className="text-sm font-semibold text-violet-200">내 공간을 더 쉽게 기억하세요</p>
-        <h2 className="mt-3 text-3xl font-extrabold tracking-[-0.05em]">이제 수납부터 기록해 볼까요?</h2>
-        <a href="/signup" className="mt-7 inline-block rounded-2xl bg-white px-5 py-3.5 text-sm font-bold text-violet-700 shadow-lg shadow-violet-900/20 transition hover:-translate-y-0.5">무료로 시작하기</a>
+      <section className="bg-violet-600 px-4 py-8 text-white sm:px-4">
+        <div className="mx-auto max-w-[1440px]">
+          <p className="text-sm font-semibold text-violet-200">내 공간을 더 쉽게 기억하세요</p>
+          <h2 className="mt-3 text-3xl font-extrabold tracking-[-0.05em]">이제 수납부터 기록해 볼까요?</h2>
+          <a href="/signup" className="mt-4 inline-block rounded-2xl bg-white px-4 py-3 text-sm font-bold text-violet-700 shadow-lg shadow-violet-900/20 transition hover:-translate-y-0.5">무료로 시작하기</a>
+        </div>
       </section>
     </main>
   )

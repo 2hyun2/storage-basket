@@ -1,13 +1,11 @@
 import type { GridRect, SpaceLayout } from '@/lib/space/types'
 
-const REQUIRED_PADDING = 1
-
 export function isInsideLayout(rect: GridRect, layout: SpaceLayout) {
   return (
-    rect.x >= REQUIRED_PADDING &&
-    rect.y >= REQUIRED_PADDING &&
-    rect.x + rect.width <= layout.grid.width - REQUIRED_PADDING &&
-    rect.y + rect.height <= layout.grid.height - REQUIRED_PADDING
+    rect.x >= 0 &&
+    rect.y >= 0 &&
+    rect.x + rect.width <= layout.grid.width &&
+    rect.y + rect.height <= layout.grid.height
   )
 }
 
@@ -23,7 +21,7 @@ export function hasOverlap(first: GridRect, second: GridRect) {
 export function validateLayout(layout: SpaceLayout) {
   for (const node of layout.nodes) {
     if (!isInsideLayout(node.rect, layout)) {
-      throw new Error(`${node.name}이(가) 부모 영역의 여백 규칙을 벗어났습니다.`)
+      throw new Error(`${node.name}이(가) 부모 영역 경계를 벗어났습니다.`)
     }
   }
 

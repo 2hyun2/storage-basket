@@ -50,14 +50,14 @@ export function LocalSpaceTree() {
   }
 
   return (
-    <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+    <section className="mt-4 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div className="flex items-start gap-3">
           <span className="grid size-9 place-items-center rounded-xl bg-violet-100 text-violet-700">
             <Layers3 size={18} />
           </span>
           <div>
-            <h2 className="font-extrabold text-slate-900">공간 노드</h2>
+            <h2 className="font-extrabold text-slate-900">우리 집 공간 목록</h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">
               텍스트 계층 또는 3D 공간 개요로 확인합니다.
             </p>
@@ -105,7 +105,7 @@ export function LocalSpaceTree() {
             아직 우리 집 아래에 등록된 공간이 없습니다. 거실처럼 첫 공간을 만들어 보세요.
           </p>
         ) : (
-          <ul className="mt-2 space-y-1" aria-label="공간 노드 목록">
+          <ul className="mt-2 space-y-1" aria-label="우리 집 공간 목록">
             {rootSpaces.map((space) => (
               <LocalSpaceTreeNode
                 key={space.id}
@@ -191,6 +191,7 @@ function LocalSpaceTreeNode({
         <Link href={`/app/space/${space.id}`} className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-violet-100 hover:text-violet-700" aria-label={`${space.name} 상세 보기`}>
           <ExternalLink size={15} />
         </Link>
+        {space.mode === 'simple' && <Link href={`/app/space/${space.id}?draw=1`} className="rounded-lg bg-violet-100 px-2 py-1.5 text-[10px] font-extrabold text-violet-700">3D 자리 정하기</Link>}
       </div>
 
       {directItems.length > 0 && (

@@ -7,6 +7,7 @@ import {
   type SceneStructureData,
   SpaceInterior3d,
 } from '@/components/space/space-interior-3d'
+import { DrawPlacementDialog } from '@/components/space/draw-placement-dialog'
 import { createClient } from '@/lib/supabase/server'
 
 type SpaceNode = {
@@ -15,12 +16,22 @@ type SpaceNode = {
   parent_id: string | null
 }
 
+type LayoutRow = {
+  id: string
+  width_cm: number
+  height_cm: number
+  depth_cm: number
+}
+
 export default async function SpaceLocationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locationId: string }>
+  searchParams: Promise<{ draw?: string }>
 }) {
   const { locationId } = await params
+  const { draw } = await searchParams
   const supabase = await createClient()
   const { data: location } = await supabase
     .from('locations')
@@ -101,9 +112,58 @@ export default async function SpaceLocationPage({
     heightCm: Number(structure.height_cm),
     depthCm: Number(structure.depth_cm),
   }))
+  let parentLayout: LayoutRow | null = null
+
+  if (location.parent_id) {
+    const { data: directParentLayout } = await supabase
+      .from('space_layouts')
+      .select('id, width_cm, height_cm, depth_cm')
+      .eq('scene_location_id', location.parent_id)
+      .maybeSingle()
+    parentLayout = directParentLayout
+
+    // Older text-only spaces may have a placement but no dedicated child scene yet.
+    // Their already-saved size is sufficient to restore the missing scene record.
+    if (!parentLayout) {
+      const { data: parentPlacement } = await supabase
+        .from('space_placements')
+        .select('width_cm, height_cm, depth_cm')
+        .eq('location_id', location.parent_id)
+        .maybeSingle()
+
+      if (parentPlacement) {
+        const { data: restoredLayout } = await supabase
+          .from('space_layouts')
+          .upsert({
+            home_id: location.home_id,
+            scene_location_id: location.parent_id,
+            layout_key: `location:${location.parent_id}`,
+            view_kind: 'interior',
+            width_cm: parentPlacement.width_cm,
+            height_cm: parentPlacement.height_cm,
+            depth_cm: parentPlacement.depth_cm,
+          }, { onConflict: 'home_id,layout_key' })
+          .select('id, width_cm, height_cm, depth_cm')
+          .single()
+        parentLayout = restoredLayout
+      }
+    }
+  } else {
+    const { data: homeLayout } = await supabase
+      .from('space_layouts')
+      .select('id, width_cm, height_cm, depth_cm')
+      .eq('home_id', location.home_id)
+      .eq('layout_key', 'home')
+      .maybeSingle()
+    parentLayout = homeLayout
+  }
+  const { data: ownPlacement } = parentLayout
+    ? await supabase.from('space_placements').select('id, location_id, x_cm, y_cm, z_cm, width_cm, height_cm, depth_cm').eq('layout_id', parentLayout.id).eq('location_id', location.id).maybeSingle()
+    : { data: null }
+  const editablePlacement = ownPlacement ? { id: ownPlacement.id, locationId: ownPlacement.location_id, xCm: Number(ownPlacement.x_cm), yCm: Number(ownPlacement.y_cm), zCm: Number(ownPlacement.z_cm), widthCm: Number(ownPlacement.width_cm), heightCm: Number(ownPlacement.height_cm), depthCm: Number(ownPlacement.depth_cm) } : null
 
   return (
-    <main className="min-h-dvh bg-[#f8f7ff] px-4 py-6 text-slate-950 sm:px-6 sm:py-8">
+    <main className="min-h-dvh bg-[#f8f7ff] px-2 py-4 text-slate-950 sm:px-4 sm:py-4">
       <section className="mx-auto max-w-5xl">
         <Link
           href={location.parent_id ? `/app/space/${location.parent_id}` : '/app/space'}
@@ -112,6 +172,8 @@ export default async function SpaceLocationPage({
           <ArrowLeft size={17} />
           상위 공간으로 돌아가기
         </Link>
+
+        {draw === '1' && <DrawPlacementDialog locationId={location.id} name={location.name} layoutId={parentLayout?.id ?? null} placement={editablePlacement} bounds={parentLayout ? { widthCm: Number(parentLayout.width_cm), heightCm: Number(parentLayout.height_cm), depthCm: Number(parentLayout.depth_cm) } : null} />}
 
         <SpacePathNavigation path={spacePath} />
 
@@ -130,7 +192,7 @@ export default async function SpaceLocationPage({
           className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-extrabold text-violet-700 transition hover:bg-violet-50"
         >
           <Construction size={16} />
-          벽·문·창문 등록
+          벽·창문 설계
         </Link>
 
         <SpaceInterior3d
@@ -148,7 +210,7 @@ export default async function SpaceLocationPage({
           />
 
         <section className="mt-6 grid gap-5 lg:grid-cols-2">
-          <ContentList title="하위 공간" empty="등록된 하위 공간이 없습니다.">
+          <ContentList title="안에 있는 공간" empty="아직 안에 만든 공간이 없습니다.">
             {childrenResult.data?.map((child) => (
               <Link
                 key={child.id}
@@ -234,7 +296,7 @@ function ContentList({
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+    <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
       <h2 className="font-extrabold">{title}</h2>
       <div className="mt-4 space-y-2">
         {children || <p className="text-sm text-slate-500">{empty}</p>}
