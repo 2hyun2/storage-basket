@@ -38,6 +38,7 @@ export type SceneStructureData = {
   kind: 'wall' | 'window'
   name: string
   colorHex?: string
+  isLabelVisible?: boolean
   xCm: number
   yCm: number
   zCm: number
@@ -68,6 +69,7 @@ type DirectItem = {
 
 const centimetresToScene = 0.01
 const defaultSceneHeightCm = 100
+const dragDistanceThreshold = 6
 
 function toSceneCenter({
   xCm,
@@ -103,6 +105,7 @@ export function SpaceInterior3d({
   onStructureSelect,
   selectedStructureId,
   spaceColor,
+  planOnly = false,
 }: {
   spaceName: string
   childSpaces: ChildSpace[]
@@ -115,6 +118,7 @@ export function SpaceInterior3d({
   onStructureSelect?: (structure: SceneStructureData) => void
   selectedStructureId?: string | null
   spaceColor?: string
+  planOnly?: boolean
 }) {
   const sceneLayout = layout ?? {
     widthCm: 450,
@@ -155,6 +159,7 @@ export function SpaceInterior3d({
               key={structure.id}
               structure={structure}
               isSelected={selectedStructureId === structure.id}
+              planOnly={planOnly}
               onSelect={onStructureSelect ? () => onStructureSelect(structure) : undefined}
             />
           ))}
@@ -164,6 +169,7 @@ export function SpaceInterior3d({
               child={child}
               index={index}
               placement={placement}
+              planOnly={planOnly}
               nestedChildren={nestedChildren.filter((nestedChild) => nestedChild.parentId === child.id)}
               onEnter={() => router.push(`/app/space/${child.id}`)}
               onEnterNested={(nestedChildId) => router.push(`/app/space/${nestedChildId}`)}
@@ -197,12 +203,21 @@ export function SpaceInterior3d({
           layoutId={layoutId}
           placement={placements.find((entry) => entry.locationId === editingSpace.id) ?? null}
           bounds={sceneLayout}
-          siblingPlacements={childSpaces
-            .filter((child) => child.id !== editingSpace.id)
-            .flatMap((child) => {
-              const siblingPlacement = placements.find((entry) => entry.locationId === child.id)
-              return siblingPlacement ? [{ ...siblingPlacement, name: child.name }] : []
-            })}
+          siblingPlacements={[
+            ...childSpaces
+              .filter((child) => child.id !== editingSpace.id)
+              .flatMap((child) => {
+                const siblingPlacement = placements.find((entry) => entry.locationId === child.id)
+                return siblingPlacement
+                  ? [{ ...siblingPlacement, name: child.name, kind: 'space' as const }]
+                  : []
+              }),
+            ...structures.map((structure) => ({
+              ...structure,
+              locationId: structure.id,
+              name: `${structure.kind === 'window' ? '창문' : '벽'} · ${structure.name}`,
+            })),
+          ]}
           onClose={() => setEditingSpace(null)}
         />
       )}
@@ -217,11 +232,11 @@ function SceneFloor({ layout, color = '#8B5CF6' }: { layout: SceneLayoutData; co
 
   return (
     <group>
-      <mesh position={[width / 2, -0.05, depth / 2]}>
+      <mesh position={[width / 2, -0.08, depth / 2]} renderOrder={0}>
         <boxGeometry args={[width, 0.1, depth]} />
         <meshStandardMaterial color={color} transparent opacity={0.28} />
       </mesh>
-      <group position={[width / 2, 0, depth / 2]}>
+      <group position={[width / 2, -0.02, depth / 2]} renderOrder={1}>
         <RectangularGrid width={width} depth={depth} divisions={divisions} color={color} />
       </group>
     </group>
@@ -231,16 +246,19 @@ function SceneFloor({ layout, color = '#8B5CF6' }: { layout: SceneLayoutData; co
 function SceneStructureMesh({
   structure,
   isSelected,
+  planOnly,
   onSelect,
 }: {
   structure: SceneStructureData
   isSelected: boolean
+  planOnly: boolean
   onSelect?: () => void
 }) {
   const width = structure.widthCm * centimetresToScene
   // 벽·창문은 아직 개별 높이 입력을 제공하지 않는다.
   // 과거에 서로 다르게 저장된 자동값 대신 공통 기본 높이로 렌더링한다.
-  const height = defaultSceneHeightCm * centimetresToScene
+  const renderedHeightCm = planOnly ? 4 : defaultSceneHeightCm
+  const height = renderedHeightCm * centimetresToScene
   const depth = structure.depthCm * centimetresToScene
   const defaultColor = {
     wall: '#c4b5fd',
@@ -252,15 +270,21 @@ function SceneStructureMesh({
     <group
       position={toSceneCenter({
         xCm: structure.xCm,
-        elevationCm: structure.yCm,
+        elevationCm: planOnly ? 0 : structure.yCm,
         planYCm: structure.zCm,
         widthCm: structure.widthCm,
-        heightCm: defaultSceneHeightCm,
+        heightCm: renderedHeightCm,
         depthCm: structure.depthCm,
       })}
     >
       <mesh
-        onClick={onSelect}
+        onClick={(event) => {
+          if (event.delta > dragDistanceThreshold) {
+            return
+          }
+
+          onSelect?.()
+        }}
         onPointerEnter={onSelect ? (event) => {
           event.stopPropagation()
           document.body.style.cursor = 'pointer'
@@ -273,11 +297,13 @@ function SceneStructureMesh({
         <meshStandardMaterial color={color} transparent opacity={isSelected ? 0.85 : 0.62} />
         <Edges color={isSelected ? '#7c3aed' : '#e2e8f0'} threshold={15} />
       </mesh>
-      <SceneLabel
-        name={structure.name}
-        position={[0, height / 2 + 0.08, 0]}
-        fontSize={0.1}
-      />
+      {structure.isLabelVisible !== false && (
+        <SceneLabel
+          name={structure.name}
+          position={[0, height / 2 + 0.08, 0]}
+          fontSize={0.1}
+        />
+      )}
     </group>
   )
 }
@@ -286,6 +312,7 @@ function ChildSpaceBlock({
   child,
   index,
   placement,
+  planOnly,
   nestedChildren,
   onEnter,
   onEnterNested,
@@ -293,15 +320,16 @@ function ChildSpaceBlock({
   child: ChildSpace
   index: number
   placement: ScenePlacementData
+  planOnly: boolean
   nestedChildren: SceneNestedChild[]
   onEnter: () => void
   onEnterNested: (nestedChildId: string) => void
 }) {
   const widthCm = placement.widthCm
-  const heightCm = placement.heightCm
+  const heightCm = planOnly ? 4 : placement.heightCm
   const depthCm = placement.depthCm
   const xCm = placement.xCm
-  const yCm = placement.yCm
+  const yCm = planOnly ? 0 : placement.yCm
   const zCm = placement.zCm
   const color = child.colorHex ?? getDefaultSpaceColor(index)
 
@@ -315,7 +343,13 @@ function ChildSpaceBlock({
       depthCm,
     })}>
       <mesh
-        onClick={onEnter}
+        onClick={(event) => {
+          if (event.delta > dragDistanceThreshold) {
+            return
+          }
+
+          onEnter()
+        }}
         onPointerEnter={(event) => { event.stopPropagation(); document.body.style.cursor = 'pointer' }}
         onPointerLeave={() => { document.body.style.cursor = 'auto' }}
       >
@@ -374,7 +408,13 @@ function NestedSpaceBlock({
       ]}
     >
       <mesh
-        onClick={onEnter}
+        onClick={(event) => {
+          if (event.delta > dragDistanceThreshold) {
+            return
+          }
+
+          onEnter()
+        }}
         onPointerEnter={(event) => { event.stopPropagation(); document.body.style.cursor = 'pointer' }}
         onPointerLeave={() => { document.body.style.cursor = 'auto' }}
       >
@@ -398,12 +438,17 @@ function SceneLabel({
   position: [number, number, number]
   fontSize?: number
 }) {
-  const width = Math.max(0.72, Math.min(1.8, name.length * fontSize * 1.7 + 0.28))
+  const horizontalPadding = fontSize * 1.5
+  const width = Math.max(
+    fontSize * 1.8,
+    Math.min(2.4, name.length * fontSize * 1.08 + horizontalPadding),
+  )
+  const height = fontSize * 2.2
 
   return (
     <group position={position} rotation={[-Math.PI / 2, 0, 0]}>
       <mesh>
-        <planeGeometry args={[width, fontSize * 2.7]} />
+        <planeGeometry args={[width, height]} />
         <meshBasicMaterial color="#0f172a" transparent opacity={0.88} />
       </mesh>
       <Text
@@ -412,7 +457,7 @@ function SceneLabel({
         anchorX="center"
         anchorY="middle"
         color="#ffffff"
-        maxWidth={width - 0.12}
+        maxWidth={width - horizontalPadding}
       >
         {name}
       </Text>
@@ -593,8 +638,25 @@ export function PlacementEditor({
           <h3 className="font-extrabold">{space.name} 3D 자리 정하기</h3>
           <button type="button" onClick={onClose} className="text-sm font-bold text-slate-500">닫기</button>
         </div>
-        <DragPlacementCanvas draft={draft} bounds={bounds} siblings={siblingPlacements} isOverlapping={Boolean(overlappingSibling)} onChange={setDraft} />
-        <p className="mt-3 text-xs font-bold text-slate-600">회색은 이미 배치된 공간이고, 연한 빨강은 현재 크기로 시작하면 겹치는 영역입니다.</p>
+        <PlanPlacementCanvas
+          draft={{
+            x: draft.x,
+            y: draft.y,
+            width: draft.width,
+            depth: draft.depth,
+          }}
+          bounds={bounds}
+          siblings={siblingPlacements}
+          isOverlapping={Boolean(overlappingSibling)}
+          onChange={(next) => setDraft({
+            ...draft,
+            x: next.x,
+            y: next.y,
+            width: next.width,
+            depth: next.depth,
+          })}
+        />
+        <p className="mt-3 text-xs font-bold text-slate-600">회색은 기존 공간, 보라·파랑은 벽·창문입니다. 연한 빨강은 현재 크기로 시작하면 겹치는 영역입니다.</p>
         <div className="mt-2 grid gap-1 border-l-2 border-violet-300 bg-violet-50 px-2 py-2 text-xs leading-5 text-violet-950">
           <p><strong>현재 Y에서 가능한 X:</strong> {formatCoordinateRanges(availableXRanges)}</p>
           <p><strong>현재 X에서 가능한 Y:</strong> {formatCoordinateRanges(availableYRanges)}</p>
@@ -650,18 +712,112 @@ function NumberInput({ label, min, max, value, onChange }: { label: string; min:
   return <label className="text-xs font-bold">{label}<input type="number" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5" /></label>
 }
 
-function DragPlacementCanvas({ draft, bounds, siblings, isOverlapping, onChange }: { draft: { x: number; y: number; z: number; width: number; height: number; depth: number }; bounds: SceneLayoutData | null; siblings: SceneSiblingPlacement[]; isOverlapping: boolean; onChange: (draft: { x: number; y: number; z: number; width: number; height: number; depth: number }) => void }) {
+export type PlanPlacementDraft = {
+  x: number
+  y: number
+  width: number
+  depth: number
+}
+
+export function PlanPlacementCanvas({
+  draft,
+  bounds,
+  siblings,
+  isOverlapping,
+  onChange,
+}: {
+  draft: PlanPlacementDraft
+  bounds: SceneLayoutData | null
+  siblings: SceneSiblingPlacement[]
+  isOverlapping: boolean
+  onChange: (draft: PlanPlacementDraft) => void
+}) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const startRef = useRef<{ x: number; y: number } | null>(null)
   const widthCm = bounds?.widthCm ?? 600
   const depthCm = bounds?.depthCm ?? 400
-  function point(event: PointerEvent<HTMLDivElement>) { const rect = canvasRef.current!.getBoundingClientRect(); return { x: Math.max(0, Math.round((event.clientX - rect.left) / rect.width * widthCm)), y: Math.max(0, Math.round((event.clientY - rect.top) / rect.height * depthCm)) } }
-  function start(event: PointerEvent<HTMLDivElement>) { event.currentTarget.setPointerCapture(event.pointerId); startRef.current = point(event) }
-  function end(event: PointerEvent<HTMLDivElement>) { if (!startRef.current) return; const next = point(event); const x = Math.min(startRef.current.x, next.x); const y = Math.min(startRef.current.y, next.y); onChange({ ...draft, x, y, width: Math.max(1, Math.abs(next.x - startRef.current.x)), depth: Math.max(1, Math.abs(next.y - startRef.current.y)) }); startRef.current = null }
+  const gridStepCm = 10
+  const xTicks = getRulerTicks(widthCm)
+  const yTicks = getRulerTicks(depthCm)
+
+  function point(event: PointerEvent<HTMLDivElement>) {
+    const rect = canvasRef.current!.getBoundingClientRect()
+
+    return {
+      x: Math.max(0, Math.round((event.clientX - rect.left) / rect.width * widthCm)),
+      y: Math.max(0, Math.round((event.clientY - rect.top) / rect.height * depthCm)),
+    }
+  }
+
+  function start(event: PointerEvent<HTMLDivElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId)
+    startRef.current = point(event)
+  }
+
+  function end(event: PointerEvent<HTMLDivElement>) {
+    if (!startRef.current) {
+      return
+    }
+
+    const next = point(event)
+    const x = Math.min(startRef.current.x, next.x)
+    const y = Math.min(startRef.current.y, next.y)
+
+    onChange({
+      ...draft,
+      x,
+      y,
+      width: Math.max(1, Math.abs(next.x - startRef.current.x)),
+      depth: Math.max(1, Math.abs(next.y - startRef.current.y)),
+    })
+    startRef.current = null
+  }
+
   return (
-    <div ref={canvasRef} onPointerDown={start} onPointerUp={end} style={{ aspectRatio: `${widthCm} / ${depthCm}` }} className="relative mt-4 w-full cursor-crosshair overflow-hidden border-2 border-violet-200 bg-[linear-gradient(#ede9fe_1px,transparent_1px),linear-gradient(90deg,#ede9fe_1px,transparent_1px)] [background-size:10px_10px]">
-      <div className="pointer-events-none absolute left-2 top-2 z-[1] rounded bg-white/90 px-2 py-1 text-[10px] font-extrabold text-violet-800">X 가로 →</div>
-      <div className="pointer-events-none absolute bottom-2 left-2 z-[1] rounded bg-white/90 px-2 py-1 text-[10px] font-extrabold text-violet-800">↓ Y 세로</div>
+    <div className="mt-4 grid grid-cols-[1.75rem_minmax(0,1fr)] grid-rows-[1.25rem_auto]">
+      <div className="border-b border-r border-violet-200 bg-violet-50 text-center text-[9px] font-extrabold leading-5 text-violet-800">
+        cm
+      </div>
+      <div className="pointer-events-none relative border-b border-violet-200 bg-violet-50">
+        <span className="absolute left-1 top-0.5 text-[9px] font-extrabold text-violet-800">X →</span>
+        {xTicks.map((value) => (
+          <div
+            key={`x-${value}`}
+            style={{ left: `${value / widthCm * 100}%` }}
+            className="absolute top-0 h-full -translate-x-1/2"
+          >
+            <span className="absolute top-0.5 -translate-x-1/2 text-[9px] font-bold text-violet-800">
+              {value}
+            </span>
+            <span className="absolute bottom-0 h-1.5 border-l border-violet-400" />
+          </div>
+        ))}
+      </div>
+      <div className="pointer-events-none relative border-r border-violet-200 bg-violet-50">
+        <span className="absolute left-1 top-1 text-[9px] font-extrabold text-violet-800">Y</span>
+        {yTicks.map((value) => (
+          <div
+            key={`y-${value}`}
+            style={{ top: `${value / depthCm * 100}%` }}
+            className="absolute left-0 w-full -translate-y-1/2"
+          >
+            <span className="absolute left-0.5 -translate-y-1/2 text-[9px] font-bold text-violet-800">
+              {value}
+            </span>
+            <span className="absolute right-0 top-0 w-1.5 border-t border-violet-400" />
+          </div>
+        ))}
+      </div>
+      <div
+        ref={canvasRef}
+        onPointerDown={start}
+        onPointerUp={end}
+        style={{
+          aspectRatio: `${widthCm} / ${depthCm}`,
+          backgroundSize: `${gridStepCm / widthCm * 100}% ${gridStepCm / depthCm * 100}%`,
+        }}
+        className="relative w-full cursor-crosshair overflow-hidden border border-violet-200 bg-[linear-gradient(#ede9fe_1px,transparent_1px),linear-gradient(90deg,#ede9fe_1px,transparent_1px)]"
+      >
       {siblings.map((sibling) => {
         const blockedLeft = Math.max(0, sibling.xCm - draft.width)
         const blockedTop = Math.max(0, sibling.zCm - draft.depth)
@@ -696,11 +852,33 @@ function DragPlacementCanvas({ draft, bounds, siblings, isOverlapping, onChange 
         </div>
       ))}
       <div style={{ left: `${draft.x / widthCm * 100}%`, top: `${draft.y / depthCm * 100}%`, width: `${draft.width / widthCm * 100}%`, height: `${draft.depth / depthCm * 100}%` }} className={`pointer-events-none absolute border-2 ${isOverlapping ? 'border-rose-600 bg-rose-500/30' : 'border-violet-600 bg-violet-500/30'}`} />
+      </div>
     </div>
   )
 }
 
-function rectanglesOverlap(
+function getRulerTicks(maximumCm: number) {
+  const stepCm = maximumCm <= 150
+    ? 10
+    : maximumCm <= 300
+      ? 25
+      : maximumCm <= 700
+        ? 50
+        : 100
+  const ticks: number[] = []
+
+  for (let value = 0; value <= maximumCm; value += stepCm) {
+    ticks.push(value)
+  }
+
+  if (ticks.at(-1) !== maximumCm) {
+    ticks.push(maximumCm)
+  }
+
+  return ticks
+}
+
+export function rectanglesOverlap(
   first: { x: number; y: number; width: number; height: number },
   second: { x: number; y: number; width: number; height: number },
 ) {

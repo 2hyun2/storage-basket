@@ -23,10 +23,11 @@ type SpaceOverview3dProps = {
   compact?: boolean
 }
 
+const dragDistanceThreshold = 6
+
 type RoomLayout = {
   position: [number, number, number]
   width: number
-  height: number
   depth: number
   color: string
 }
@@ -48,6 +49,7 @@ type StructureLayout = {
   height: number
   depth: number
   color: string
+  isLabelVisible: boolean
   editHref: string | null
 }
 
@@ -148,11 +150,10 @@ function getRoomLayout(
   return {
     position: [
       (placement.xCm + placement.widthCm / 2 - homeLayout.widthCm / 2) * centimetresToScene,
-      placement.yCm * centimetresToScene,
+      0,
       (placement.zCm + placement.depthCm / 2 - homeLayout.depthCm / 2) * centimetresToScene,
     ] as [number, number, number],
     width: placement.widthCm * centimetresToScene,
-    height: toSceneHeight(placement.heightCm),
     depth: placement.depthCm * centimetresToScene,
     color: space.colorHex ?? getDefaultSpaceColor(index),
   }
@@ -225,6 +226,7 @@ function getStructureLayouts(
       height: toSceneHeight(structure.heightCm),
       depth: structure.depthCm * 0.01,
       color: structure.colorHex ?? (structure.kind === 'window' ? '#38BDF8' : '#C4B5FD'),
+      isLabelVisible: structure.isLabelVisible !== false,
       editHref: sceneLocationId
         ? `/app/space/${sceneLocationId}/structure/create?edit=${structure.id}`
         : null,
@@ -252,11 +254,17 @@ function HouseStructure({ homeLayout }: { homeLayout: HomeLayout | null }) {
 
   return (
     <group>
-      <mesh position={[0, -0.05, 0]}>
+      <mesh position={[0, -0.08, 0]} renderOrder={0}>
         <boxGeometry args={[width, 0.12, depth]} />
         <meshStandardMaterial color="#ffffff" roughness={0.9} />
       </mesh>
-      <RectangularGrid width={width} depth={depth} divisions={gridDivisions} color="#ddd6fe" />
+      <RectangularGrid
+        width={width}
+        depth={depth}
+        divisions={gridDivisions}
+        positionY={-0.02}
+        color="#ddd6fe"
+      />
     </group>
   )
 }
@@ -277,8 +285,14 @@ function RoomZone({
   return (
     <group position={layout.position}>
       <mesh
-        position={[0, layout.height / 2, 0]}
-        onClick={() => router.push(`/app/space/${space.id}`)}
+        position={[0, 0.02, 0]}
+        onClick={(event) => {
+          if (event.delta > dragDistanceThreshold) {
+            return
+          }
+
+          router.push(`/app/space/${space.id}`)
+        }}
         onPointerEnter={(event) => {
           event.stopPropagation()
           document.body.style.cursor = 'pointer'
@@ -287,7 +301,7 @@ function RoomZone({
           document.body.style.cursor = 'auto'
         }}
       >
-        <boxGeometry args={[layout.width, layout.height, layout.depth]} />
+        <boxGeometry args={[layout.width, 0.04, layout.depth]} />
         <meshStandardMaterial color={layout.color} transparent opacity={0.16} roughness={0.5} />
       </mesh>
       <RectangularGrid
@@ -299,7 +313,7 @@ function RoomZone({
       />
 
       {space.isPanelVisible !== false && (
-        <SpaceLabel name={space.name} position={[0, layout.height + 0.08, 0]} />
+        <SpaceLabel name={space.name} />
       )}
 
       {nestedSpaces.map(({ space: nestedSpace, layout: nestedLayout }) => (
@@ -324,12 +338,18 @@ function StructureZone({
   nested?: boolean
 }) {
   const router = useRouter()
+  const renderedHeight = nested ? structure.height : 0.04
+  const baseHeight = nested ? structure.position[1] : 0.08
 
   return (
-    <group position={structure.position}>
+    <group position={[structure.position[0], baseHeight, structure.position[2]]}>
       <mesh
-        position={[0, structure.height / 2, 0]}
+        position={[0, renderedHeight / 2, 0]}
         onClick={structure.editHref ? (event) => {
+          if (event.delta > dragDistanceThreshold) {
+            return
+          }
+
           event.stopPropagation()
           const editHref = structure.editHref
           if (editHref) {
@@ -344,7 +364,7 @@ function StructureZone({
           document.body.style.cursor = 'auto'
         } : undefined}
       >
-        <boxGeometry args={[structure.width, structure.height, structure.depth]} />
+        <boxGeometry args={[structure.width, renderedHeight, structure.depth]} />
         <meshStandardMaterial
           color={structure.color}
           transparent
@@ -352,10 +372,12 @@ function StructureZone({
           roughness={0.42}
         />
       </mesh>
-      <SpaceLabel
-        name={`${structure.kind === 'window' ? '창문' : '벽'} · ${structure.name}`}
-        position={[0, structure.height + 0.04, 0]}
-      />
+      {structure.isLabelVisible && (
+        <SpaceLabel
+          name={`${structure.kind === 'window' ? '창문' : '벽'} · ${structure.name}`}
+          position={[0, renderedHeight + 0.04, 0]}
+        />
+      )}
     </group>
   )
 }
@@ -374,6 +396,10 @@ function NestedRoomZone({
       <mesh
         position={[0, layout.height / 2, 0]}
         onClick={(event) => {
+          if (event.delta > dragDistanceThreshold) {
+            return
+          }
+
           event.stopPropagation()
           router.push(`/app/space/${space.id}`)
         }}
@@ -409,21 +435,26 @@ function SpaceLabel({
   name: string
   position?: [number, number, number]
 }) {
-  const labelWidth = Math.max(0.9, Math.min(1.8, name.length * 0.2 + 0.35))
+  const fontSize = 0.14
+  const horizontalPadding = 0.2
+  const labelWidth = Math.max(
+    0.32,
+    Math.min(2.4, name.length * fontSize * 1.08 + horizontalPadding),
+  )
 
   return (
     <group position={position} rotation={[-Math.PI / 2, 0, 0]}>
       <mesh>
-        <planeGeometry args={[labelWidth, 0.34]} />
+        <planeGeometry args={[labelWidth, 0.28]} />
         <meshBasicMaterial color="#0f172a" transparent opacity={0.9} />
       </mesh>
       <Text
         position={[0, 0, 0.01]}
-        fontSize={0.14}
+        fontSize={fontSize}
         anchorX="center"
         anchorY="middle"
         color="#ffffff"
-        maxWidth={labelWidth - 0.14}
+        maxWidth={labelWidth - horizontalPadding}
       >
         {name}
       </Text>

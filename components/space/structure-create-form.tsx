@@ -3,7 +3,14 @@
 import { useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { PanelTop, Pencil, Plus, RectangleHorizontal, Trash2 } from 'lucide-react'
-import { SpaceInterior3d, type SceneLayoutData, type SceneStructureData } from '@/components/space/space-interior-3d'
+import {
+  PlanPlacementCanvas,
+  rectanglesOverlap,
+  SpaceInterior3d,
+  type SceneLayoutData,
+  type SceneSiblingPlacement,
+  type SceneStructureData,
+} from '@/components/space/space-interior-3d'
 import { normalizeSpaceColor } from '@/lib/space/colors'
 import { invalidateHomeInventory, useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
@@ -36,7 +43,12 @@ export function StructureCreateForm({
   initialEditId?: string
 }) {
   const queryClient = useQueryClient()
-  const { layouts, structures: cachedStructures } = useSupabaseInventory()
+  const {
+    spaces,
+    layouts,
+    placements: cachedPlacements,
+    structures: cachedStructures,
+  } = useSupabaseInventory()
   const layout = layouts.find((entry) => entry.sceneLocationId === locationId) ?? null
   const layoutId = layout?.id ?? null
   const bounds: SceneLayoutData | null = layout
@@ -44,6 +56,10 @@ export function StructureCreateForm({
     : null
   const structures: StructureRecord[] = layout
     ? cachedStructures.filter((structure) => structure.layoutId === layout.id)
+    : []
+  const childSpaces = spaces.filter((space) => space.parentId === locationId)
+  const placements = layout
+    ? cachedPlacements.filter((placement) => placement.layoutId === layout.id)
     : []
   const initialStructure = initialEditId
     ? structures.find((structure) => structure.id === initialEditId) ?? null
@@ -53,6 +69,9 @@ export function StructureCreateForm({
   const [structureColor, setStructureColor] = useState(
     initialStructure?.colorHex ?? getDefaultStructureColor(initialStructure?.kind ?? 'wall'),
   )
+  const [isLabelVisible, setIsLabelVisible] = useState(
+    initialStructure?.isLabelVisible !== false,
+  )
   const [draft, setDraft] = useState<StructureDraft>(() => initialStructure ? {
     name: initialStructure.name,
     planX: initialStructure.xCm,
@@ -61,11 +80,27 @@ export function StructureCreateForm({
     sizeY: initialStructure.depthCm,
   } : emptyDraft)
   const [message, setMessage] = useState<string | null>(null)
+  const siblingPlacements: SceneSiblingPlacement[] = [
+    ...childSpaces.flatMap((space) => {
+      const placement = placements.find((entry) => entry.locationId === space.id)
+      return placement
+        ? [{ ...placement, name: space.name, kind: 'space' as const }]
+        : []
+    }),
+    ...structures
+      .filter((structure) => structure.id !== editingId)
+      .map((structure) => ({
+        ...structure,
+        locationId: structure.id,
+        name: `${structure.kind === 'window' ? '창문' : '벽'} · ${structure.name}`,
+      })),
+  ]
 
   function startNew(nextKind: StructureKind = kind) {
     setKind(nextKind)
     setEditingId(null)
     setStructureColor(getDefaultStructureColor(nextKind))
+    setIsLabelVisible(true)
     setDraft(emptyDraft)
     setMessage(null)
   }
@@ -74,6 +109,7 @@ export function StructureCreateForm({
     setKind(structure.kind)
     setEditingId(structure.id)
     setStructureColor(structure.colorHex ?? getDefaultStructureColor(structure.kind))
+    setIsLabelVisible(structure.isLabelVisible !== false)
     setDraft({
       name: structure.name,
       planX: structure.xCm,
@@ -109,6 +145,15 @@ export function StructureCreateForm({
       return
     }
 
+    const overlappingSibling = siblingPlacements.find((sibling) => rectanglesOverlap(
+      { x: planX, y: planY, width: sizeX, height: sizeY },
+      { x: sibling.xCm, y: sibling.zCm, width: sibling.widthCm, height: sibling.depthCm },
+    ))
+    if (overlappingSibling) {
+      setMessage(`“${overlappingSibling.name}”과 겹칩니다. 비어 있는 자리로 옮겨 주세요.`)
+      return
+    }
+
     const name = draft.name.trim() || defaultName(kind, structures.filter((entry) => entry.kind === kind).length + 1)
     const colorHex = normalizeSpaceColor(structureColor)
     if (!colorHex) {
@@ -127,6 +172,7 @@ export function StructureCreateForm({
       height_cm: defaultStructureHeightCm,
       depth_cm: sizeY,
       color_hex: colorHex,
+      is_label_visible: isLabelVisible,
     }
     const supabase = createClient()
     const query = editingId
@@ -168,12 +214,30 @@ export function StructureCreateForm({
   const maxSizeY = bounds ? bounds.depthCm : null
   const maxStartX = bounds ? Math.max(0, bounds.widthCm - sizeX) : null
   const maxStartY = bounds ? Math.max(0, bounds.depthCm - sizeY) : null
-  const previewStructure = bounds && hasCompleteDraft(draft) ? createPreviewStructure({
+  const isDraftComplete = hasCompleteDraft(draft)
+  const overlappingSibling = isDraftComplete
+    ? siblingPlacements.find((sibling) => rectanglesOverlap(
+        {
+          x: numericValue(draft.planX),
+          y: numericValue(draft.planY),
+          width: sizeX,
+          height: sizeY,
+        },
+        {
+          x: sibling.xCm,
+          y: sibling.zCm,
+          width: sibling.widthCm,
+          height: sibling.depthCm,
+        },
+      )) ?? null
+    : null
+  const previewStructure = bounds && isDraftComplete ? createPreviewStructure({
     id: editingId ?? 'new-structure-preview',
     kind,
     draft,
     heightCm: defaultStructureHeightCm,
     colorHex: normalizeSpaceColor(structureColor) ?? getDefaultStructureColor(kind),
+    isLabelVisible,
     existingCount: structures.filter((structure) => structure.kind === kind).length,
   }) : null
   const previewStructures = previewStructure
@@ -192,16 +256,21 @@ export function StructureCreateForm({
     <div className="space-y-5">
       <div className="rounded-2xl border border-violet-100 bg-violet-50/60 p-3">
         <p className="text-sm font-extrabold text-violet-950">이 공간 미리 보기</p>
-        <p className="mt-1 text-xs leading-5 text-slate-600">입력값을 바꾸면 저장 전 위치와 크기가 바로 반영됩니다. 이미 만든 벽·창문은 3D에서 눌러 고칠 수 있습니다.</p>
+        <p className="mt-1 text-xs leading-5 text-slate-600">입력값을 바꾸면 저장 전 위치와 크기가 바로 반영됩니다. 이 안의 공간·벽·창문을 함께 보여 주므로 서로 겹치지 않게 확인할 수 있습니다.</p>
       </div>
 
       <SpaceInterior3d
         spaceName={locationName}
-        childSpaces={[]}
+        childSpaces={childSpaces.map((space) => ({
+          id: space.id,
+          name: space.name,
+          is_panel_visible: space.isPanelVisible,
+          colorHex: space.colorHex,
+        }))}
         items={[]}
         layout={bounds}
         layoutId={null}
-        placements={[]}
+        placements={placements}
         structures={previewStructures}
         selectedStructureId={editingId ?? previewStructure?.id ?? null}
         onStructureSelect={selectStructureFromScene}
@@ -242,10 +311,37 @@ export function StructureCreateForm({
 
         <Field label="표시 이름" value={draft.name} onChange={(name) => setDraft({ ...draft, name })} placeholder={kind === 'wall' ? '예: 거실 북쪽 벽' : '예: 거실 통창'} />
         <StructureColorField value={structureColor} onChange={setStructureColor} />
+        <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold text-slate-700">
+          <input
+            type="checkbox"
+            checked={isLabelVisible}
+            onChange={(event) => setIsLabelVisible(event.target.checked)}
+          />
+          3D에서 이름표 보이기
+        </label>
 
         <div className="rounded-2xl bg-slate-50 p-3">
           <p className="text-sm font-extrabold">cm 위치와 크기</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">X는 왼쪽→오른쪽, Y는 위쪽→아래쪽입니다. 창문은 벽의 자식이 아닌 별도 건축 영역이며, 문은 벽 구간을 비워 개구부로 표현합니다.</p>
+          <PlanPlacementCanvas
+            draft={{
+              x: numericValue(draft.planX),
+              y: numericValue(draft.planY),
+              width: sizeX,
+              depth: sizeY,
+            }}
+            bounds={bounds}
+            siblings={siblingPlacements}
+            isOverlapping={Boolean(overlappingSibling)}
+            onChange={(next) => setDraft({
+              ...draft,
+              planX: next.x,
+              planY: next.y,
+              sizeX: next.width,
+              sizeY: next.depth,
+            })}
+          />
+          <p className="mt-3 text-xs font-bold text-slate-600">회색은 기존 공간, 보라·파랑은 벽·창문입니다. 드래그한 뒤 아래에서 1cm 단위로 고칠 수 있습니다.</p>
           <div className="mt-4 space-y-3">
             <div className="grid grid-cols-2 gap-2">
               <p className="col-span-2 text-xs font-extrabold text-slate-700">시작 위치 · X는 왼쪽→오른쪽, Y는 위쪽→아래쪽</p>
@@ -258,6 +354,11 @@ export function StructureCreateForm({
               <NumberField label={`세로 Y · 최대 ${maxSizeY ?? '?'}cm`} value={draft.sizeY} min={1} max={maxSizeY ?? undefined} onChange={(sizeY) => setDraft({ ...draft, sizeY })} />
             </div>
           </div>
+          {overlappingSibling && (
+            <p className="mt-3 text-xs font-bold text-rose-700">
+              현재 위치는 “{overlappingSibling.name}”과 겹칩니다.
+            </p>
+          )}
         </div>
 
         {message && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm font-bold text-rose-700">{message}</p>}
@@ -336,6 +437,7 @@ function createPreviewStructure({
   draft,
   heightCm,
   colorHex,
+  isLabelVisible,
   existingCount,
 }: {
   id: string
@@ -343,6 +445,7 @@ function createPreviewStructure({
   draft: StructureDraft
   heightCm: number
   colorHex: string
+  isLabelVisible: boolean
   existingCount: number
 }): StructureRecord {
   return {
@@ -356,6 +459,7 @@ function createPreviewStructure({
     heightCm,
     depthCm: numericValue(draft.sizeY),
     colorHex,
+    isLabelVisible,
   }
 }
 

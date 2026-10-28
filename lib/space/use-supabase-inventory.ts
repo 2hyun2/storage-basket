@@ -33,6 +33,7 @@ export type SceneStructure = {
   kind: 'wall' | 'window'
   name: string
   colorHex?: string
+  isLabelVisible?: boolean
   xCm: number
   yCm: number
   zCm: number
@@ -75,6 +76,21 @@ type HomeInventory = {
   layouts: SceneLayout[]
   placements: SpacePlacement[]
   structures: SceneStructure[]
+}
+
+type StructureQueryRow = {
+  id: string
+  layout_id: string
+  kind: string
+  name: string
+  x_cm: number
+  y_cm: number
+  z_cm: number
+  width_cm: number
+  height_cm: number
+  depth_cm: number
+  color_hex?: string | null
+  is_label_visible?: boolean | null
 }
 
 const emptyInventory: HomeInventory = {
@@ -187,7 +203,7 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
           .in('layout_id', layoutIds),
         supabase
           .from('scene_structures')
-          .select('id, layout_id, kind, name, x_cm, y_cm, z_cm, width_cm, height_cm, depth_cm, color_hex')
+          .select('id, layout_id, kind, name, x_cm, y_cm, z_cm, width_cm, height_cm, depth_cm, color_hex, is_label_visible')
           .in('layout_id', layoutIds),
       ])
     : [{ data: [], error: null }, { data: [], error: null }]
@@ -196,8 +212,28 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
     throw placementsResult.error
   }
 
+  let structureRows: StructureQueryRow[] = structuresResult.data ?? []
   if (structuresResult.error) {
-    throw structuresResult.error
+    const isNewDisplayColumnMissing = /color_hex|is_label_visible/i.test(
+      structuresResult.error.message,
+    )
+
+    if (!isNewDisplayColumnMissing || layoutIds.length === 0) {
+      throw structuresResult.error
+    }
+
+    // 새 표시 설정용 SQL을 아직 적용하지 않은 기존 Home도
+    // 공간·물건·구조물 화면이 멈추지 않도록 이전 열 구성으로 한 번 더 읽는다.
+    const fallbackStructuresResult = await supabase
+      .from('scene_structures')
+      .select('id, layout_id, kind, name, x_cm, y_cm, z_cm, width_cm, height_cm, depth_cm')
+      .in('layout_id', layoutIds)
+
+    if (fallbackStructuresResult.error) {
+      throw fallbackStructuresResult.error
+    }
+
+    structureRows = fallbackStructuresResult.data ?? []
   }
 
   const homeLayoutRow = layouts.find((layout) => layout.layout_key === 'home')
@@ -266,7 +302,7 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
       heightCm: Number(placement.height_cm),
       depthCm: Number(placement.depth_cm),
     })),
-    structures: (structuresResult.data ?? []).map((structure) => ({
+    structures: structureRows.map((structure) => ({
       id: structure.id,
       layoutId: structure.layout_id,
       kind: structure.kind as SceneStructure['kind'],
@@ -277,7 +313,8 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
       widthCm: Number(structure.width_cm),
       heightCm: Number(structure.height_cm),
       depthCm: Number(structure.depth_cm),
-      colorHex: structure.color_hex,
+      colorHex: structure.color_hex ?? undefined,
+      isLabelVisible: structure.is_label_visible ?? true,
     })),
   }
 }
