@@ -1,20 +1,33 @@
 'use client'
 
-import { Html, OrbitControls } from '@react-three/drei'
+import { OrbitControls, Text } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { useRouter } from 'next/navigation'
 import { BufferGeometry, Float32BufferAttribute } from 'three'
 import { useMemo } from 'react'
 import type { LocalSpace } from '@/lib/space/local-spaces'
-import type { HomeLayout, SpacePlacement } from '@/lib/space/use-supabase-inventory'
+import type {
+  HomeLayout,
+  SceneLayout,
+  SpacePlacement,
+} from '@/lib/space/use-supabase-inventory'
 
 type SpaceOverview3dProps = {
   spaces: LocalSpace[]
   homeLayout: HomeLayout | null
+  layouts: SceneLayout[]
   placements: SpacePlacement[]
+  compact?: boolean
 }
 
 type RoomLayout = {
+  position: [number, number, number]
+  width: number
+  depth: number
+  color: string
+}
+
+type NestedRoomLayout = {
   position: [number, number, number]
   width: number
   depth: number
@@ -26,23 +39,32 @@ const roomColors = ['#8b5cf6', '#0ea5e9', '#ec4899', '#f59e0b', '#14b8a6']
 export function SpaceOverview3d({
   spaces,
   homeLayout,
-  placements,
+  layouts = [],
+  placements = [],
+  compact = false,
 }: SpaceOverview3dProps) {
   const router = useRouter()
   const rootSpaces = spaces.filter((space) => space.parentId === null)
   const homeWidth = homeLayout ? homeLayout.widthCm * 0.01 : 9
   const homeDepth = homeLayout ? homeLayout.depthCm * 0.01 : 6
-  const cameraHeight = Math.max(homeWidth, homeDepth) * 1.7
-  const placedRootSpaces = rootSpaces.filter((space) => placements.some((placement) => placement.locationId === space.id))
-  const unplacedRootSpaces = rootSpaces.filter((space) => !placements.some((placement) => placement.locationId === space.id))
+  // 처음에는 공간 이름과 내부 배치가 읽히는 가까운 상단 시점으로 시작한다.
+  // 전체 평면도는 사용자가 마우스 휠로 한 단계 물러나 확인할 수 있다.
+  const cameraHeight = Math.max(homeWidth, homeDepth) * 1.45
+  const homePlacements = homeLayout
+    ? placements.filter((placement) => placement.layoutId === homeLayout.id)
+    : []
+  const placedRootSpaces = rootSpaces.filter((space) => homePlacements.some((placement) => placement.locationId === space.id))
+  const unplacedRootSpaces = rootSpaces.filter((space) => !homePlacements.some((placement) => placement.locationId === space.id))
 
   return (
-    <div className="mt-4 overflow-hidden border border-slate-200 bg-white shadow-inner">
-      <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700">
-        <span>3D 집 구조</span>
-        <span className="text-violet-600">방 바닥을 클릭해 내부로 이동</span>
-      </div>
-      <div className="h-96">
+    <div className={`mt-4 overflow-hidden border border-slate-200 bg-white ${compact ? '' : 'shadow-inner'}`}>
+      {!compact && (
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700">
+          <span>우리 집 배치도</span>
+          <span className="text-violet-600">공간을 클릭해 내부로 이동</span>
+        </div>
+      )}
+      <div className={compact ? 'h-72 sm:h-80' : 'h-96'}>
         <Canvas camera={{ position: [0, cameraHeight, 0.01], fov: 42 }}>
           <color attach="background" args={['#f8fafc']} />
           <ambientLight intensity={1.5} />
@@ -50,14 +72,17 @@ export function SpaceOverview3d({
 
           <HouseStructure homeLayout={homeLayout} />
           {placedRootSpaces.map((space, index) => {
-            const layout = getRoomLayout(space.id, index, homeLayout, placements)
+            const layout = getRoomLayout(space.id, index, homeLayout, homePlacements)
             if (!layout) return null
+
+            const nestedSpaces = getNestedSpaces(space, spaces, layouts, placements, index)
 
             return (
               <RoomZone
                 key={space.id}
                 space={space}
                 layout={layout}
+                nestedSpaces={nestedSpaces}
               />
             )
           })}
@@ -65,7 +90,7 @@ export function SpaceOverview3d({
           <OrbitControls
             target={[0, 0, 0]}
             enablePan={false}
-            minDistance={7}
+            minDistance={4}
             maxDistance={14}
             minPolarAngle={0.08}
             maxPolarAngle={Math.PI / 2 - 0.08}
@@ -108,6 +133,49 @@ function getRoomLayout(
   }
 }
 
+function getNestedSpaces(
+  parentSpace: LocalSpace,
+  spaces: LocalSpace[],
+  layouts: SceneLayout[],
+  placements: SpacePlacement[],
+  colorOffset: number,
+) {
+  const parentScene = layouts.find((layout) => layout.sceneLocationId === parentSpace.id)
+
+  if (!parentScene) {
+    return []
+  }
+
+  return spaces
+    .filter((space) => space.parentId === parentSpace.id)
+    .map((space, index) => {
+      const placement = placements.find(
+        (entry) => entry.layoutId === parentScene.id && entry.locationId === space.id,
+      )
+
+      if (!placement) {
+        return null
+      }
+
+      const centimetresToScene = 0.01
+
+      return {
+        space,
+        layout: {
+          position: [
+            (placement.xCm + placement.widthCm / 2 - parentScene.widthCm / 2) * centimetresToScene,
+            0.06,
+            (placement.zCm + placement.depthCm / 2 - parentScene.depthCm / 2) * centimetresToScene,
+          ] as [number, number, number],
+          width: placement.widthCm * centimetresToScene,
+          depth: placement.depthCm * centimetresToScene,
+          color: roomColors[(colorOffset + index + 1) % roomColors.length],
+        } satisfies NestedRoomLayout,
+      }
+    })
+    .filter((entry): entry is { space: LocalSpace, layout: NestedRoomLayout } => entry !== null)
+}
+
 function HouseStructure({ homeLayout }: { homeLayout: HomeLayout | null }) {
   const width = homeLayout ? homeLayout.widthCm * 0.01 : 9
   const depth = homeLayout ? homeLayout.depthCm * 0.01 : 6
@@ -115,11 +183,11 @@ function HouseStructure({ homeLayout }: { homeLayout: HomeLayout | null }) {
 
   return (
     <group>
-      <mesh position={[0, -0.08, 0]}>
+      <mesh position={[0, -0.05, 0]}>
         <boxGeometry args={[width, 0.12, depth]} />
-        <meshStandardMaterial color="#1e293b" roughness={0.75} />
+        <meshStandardMaterial color="#ffffff" roughness={0.9} />
       </mesh>
-      <RectangularGrid width={width} depth={depth} divisions={gridDivisions} />
+      <RectangularGrid width={width} depth={depth} divisions={gridDivisions} color="#ddd6fe" />
     </group>
   )
 }
@@ -127,9 +195,11 @@ function HouseStructure({ homeLayout }: { homeLayout: HomeLayout | null }) {
 function RoomZone({
   space,
   layout,
+  nestedSpaces,
 }: {
   space: LocalSpace
   layout: RoomLayout
+  nestedSpaces: Array<{ space: LocalSpace, layout: NestedRoomLayout }>
 }) {
   const router = useRouter()
 
@@ -147,23 +217,98 @@ function RoomZone({
         }}
       >
         <boxGeometry args={[layout.width, 0.04, layout.depth]} />
-        <meshStandardMaterial color={layout.color} transparent opacity={0.24} roughness={0.5} />
+        <meshStandardMaterial color={layout.color} transparent opacity={0.18} roughness={0.5} />
       </mesh>
       <RectangularGrid
         width={layout.width}
         depth={layout.depth}
         divisions={Math.max(6, Math.round(Math.max(layout.width, layout.depth) * 10))}
         positionY={0.035}
-        color="#c4b5fd"
+        color={layout.color}
       />
 
       {space.isPanelVisible !== false && (
-        <Html position={[0, 0.15, 0]} center transform sprite distanceFactor={8}>
-          <div className="min-w-20 rounded-lg border border-white/20 bg-slate-950/90 px-2 py-1.5 text-center text-xs font-extrabold text-white shadow-lg">
-            {space.name}
-          </div>
-        </Html>
+        <SpaceLabel name={space.name} />
       )}
+
+      {nestedSpaces.map(({ space: nestedSpace, layout: nestedLayout }) => (
+        <NestedRoomZone
+          key={nestedSpace.id}
+          space={nestedSpace}
+          layout={nestedLayout}
+        />
+      ))}
+    </group>
+  )
+}
+
+function NestedRoomZone({
+  space,
+  layout,
+}: {
+  space: LocalSpace
+  layout: NestedRoomLayout
+}) {
+  const router = useRouter()
+
+  return (
+    <group position={layout.position}>
+      <mesh
+        position={[0, 0, 0]}
+        onClick={(event) => {
+          event.stopPropagation()
+          router.push(`/app/space/${space.id}`)
+        }}
+        onPointerEnter={(event) => {
+          event.stopPropagation()
+          document.body.style.cursor = 'pointer'
+        }}
+        onPointerLeave={() => {
+          document.body.style.cursor = 'auto'
+        }}
+      >
+        <boxGeometry args={[layout.width, 0.06, layout.depth]} />
+        <meshStandardMaterial color={layout.color} transparent opacity={0.55} roughness={0.45} />
+      </mesh>
+      <RectangularGrid
+        width={layout.width}
+        depth={layout.depth}
+        divisions={Math.max(4, Math.round(Math.max(layout.width, layout.depth) * 10))}
+        positionY={0.035}
+        color={layout.color}
+      />
+      {space.isPanelVisible !== false && (
+        <SpaceLabel name={space.name} position={[0, 0.075, 0]} />
+      )}
+    </group>
+  )
+}
+
+function SpaceLabel({
+  name,
+  position = [0, 0.08, 0],
+}: {
+  name: string
+  position?: [number, number, number]
+}) {
+  const labelWidth = Math.max(0.9, Math.min(1.8, name.length * 0.2 + 0.35))
+
+  return (
+    <group position={position} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh>
+        <planeGeometry args={[labelWidth, 0.34]} />
+        <meshBasicMaterial color="#0f172a" transparent opacity={0.9} />
+      </mesh>
+      <Text
+        position={[0, 0, 0.01]}
+        fontSize={0.14}
+        anchorX="center"
+        anchorY="middle"
+        color="#ffffff"
+        maxWidth={labelWidth - 0.14}
+      >
+        {name}
+      </Text>
     </group>
   )
 }

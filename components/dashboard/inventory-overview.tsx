@@ -15,6 +15,7 @@ import type { LocalItem } from '@/lib/space/local-items'
 import type { LocalSpace } from '@/lib/space/local-spaces'
 import {
   type HomeLayout,
+  type SceneLayout,
   type SpacePlacement,
   useSupabaseInventory,
 } from '@/lib/space/use-supabase-inventory'
@@ -27,7 +28,7 @@ type InventoryOverviewProps = {
 export function InventoryOverview({ displayName }: InventoryOverviewProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const { spaces, items, homeLayout, placements } = useSupabaseInventory()
+  const { spaces, items, homeLayout, layouts, placements } = useSupabaseInventory()
 
   const itemsWithPath = useMemo(
     () => items.map((item) => ({ ...item, locationPath: getLocationPath(item.locationId, spaces) })),
@@ -130,6 +131,7 @@ export function InventoryOverview({ displayName }: InventoryOverviewProps) {
           <Home3dPreview
             spaces={spaces}
             homeLayout={homeLayout}
+            layouts={layouts}
             placements={placements}
           />
           <QuickLinks />
@@ -233,10 +235,12 @@ function QuickSearchResults({ items, hasItems, hasSearchCondition }: QuickSearch
 function Home3dPreview({
   spaces,
   homeLayout,
+  layouts,
   placements,
 }: {
   spaces: LocalSpace[]
   homeLayout: HomeLayout | null
+  layouts: SceneLayout[]
   placements: SpacePlacement[]
 }) {
   return (
@@ -252,7 +256,9 @@ function Home3dPreview({
         <SpaceOverview3d
           spaces={spaces}
           homeLayout={homeLayout}
+          layouts={layouts}
           placements={placements}
+          compact
         />
       ) : (
         <div className="mt-5 grid aspect-[16/7] place-items-center rounded-2xl bg-slate-100 p-3 text-center text-sm font-bold text-slate-500">

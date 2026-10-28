@@ -1,9 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { PanelTop, Pencil, Plus, RectangleHorizontal, Trash2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { SpaceInterior3d, type SceneLayoutData, type SceneStructureData } from '@/components/space/space-interior-3d'
+import { invalidateHomeInventory, useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
 
 type StructureKind = 'wall' | 'window'
@@ -18,61 +19,40 @@ type StructureDraft = {
 }
 
 const emptyDraft: StructureDraft = { name: '', planX: '', planY: '', sizeX: '', sizeY: '' }
+const defaultStructureHeightCm = 100
 
-export function StructureCreateForm({ locationId, locationName }: { locationId: string; locationName: string }) {
-  const [kind, setKind] = useState<StructureKind>('wall')
-  const [layoutId, setLayoutId] = useState<string | null>(null)
-  const [bounds, setBounds] = useState<SceneLayoutData | null>(null)
-  const [structures, setStructures] = useState<StructureRecord[]>([])
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [draft, setDraft] = useState<StructureDraft>(emptyDraft)
+export function StructureCreateForm({
+  locationId,
+  locationName,
+  initialEditId,
+}: {
+  locationId: string
+  locationName: string
+  initialEditId?: string
+}) {
+  const queryClient = useQueryClient()
+  const { layouts, structures: cachedStructures } = useSupabaseInventory()
+  const layout = layouts.find((entry) => entry.sceneLocationId === locationId) ?? null
+  const layoutId = layout?.id ?? null
+  const bounds: SceneLayoutData | null = layout
+    ? { widthCm: layout.widthCm, depthCm: layout.depthCm, heightCm: layout.heightCm }
+    : null
+  const structures: StructureRecord[] = layout
+    ? cachedStructures.filter((structure) => structure.layoutId === layout.id)
+    : []
+  const initialStructure = initialEditId
+    ? structures.find((structure) => structure.id === initialEditId) ?? null
+    : null
+  const [kind, setKind] = useState<StructureKind>(initialStructure?.kind ?? 'wall')
+  const [editingId, setEditingId] = useState<string | null>(initialStructure?.id ?? null)
+  const [draft, setDraft] = useState<StructureDraft>(() => initialStructure ? {
+    name: initialStructure.name,
+    planX: initialStructure.xCm,
+    planY: initialStructure.zCm,
+    sizeX: initialStructure.widthCm,
+    sizeY: initialStructure.depthCm,
+  } : emptyDraft)
   const [message, setMessage] = useState<string | null>(null)
-  const router = useRouter()
-
-  const loadScene = useCallback(async () => {
-    const supabase = createClient()
-    const { data: layout, error: layoutError } = await supabase
-      .from('space_layouts')
-      .select('id, width_cm, depth_cm, height_cm')
-      .eq('scene_location_id', locationId)
-      .maybeSingle()
-
-    if (layoutError || !layout) {
-      setMessage('이 공간은 아직 3D로 정해진 자리가 없습니다. 먼저 공간의 위치와 크기를 정해 주세요.')
-      return
-    }
-
-    setLayoutId(layout.id)
-    setBounds({ widthCm: Number(layout.width_cm), depthCm: Number(layout.depth_cm), heightCm: Number(layout.height_cm) })
-
-    const { data: rows, error: structureError } = await supabase
-      .from('scene_structures')
-      .select('id, kind, name, x_cm, y_cm, z_cm, width_cm, height_cm, depth_cm')
-      .eq('layout_id', layout.id)
-      .order('created_at')
-
-    if (structureError) {
-      setMessage(structureError.message)
-      return
-    }
-
-    setStructures((rows ?? []).map((row) => ({
-      id: row.id,
-      kind: row.kind as StructureKind,
-      name: row.name,
-      xCm: Number(row.x_cm),
-      yCm: Number(row.y_cm),
-      zCm: Number(row.z_cm),
-      widthCm: Number(row.width_cm),
-      heightCm: Number(row.height_cm),
-      depthCm: Number(row.depth_cm),
-    })))
-  }, [locationId])
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => { void loadScene() }, 0)
-    return () => window.clearTimeout(timer)
-  }, [loadScene])
 
   function startNew(nextKind: StructureKind = kind) {
     setKind(nextKind)
@@ -128,7 +108,7 @@ export function StructureCreateForm({ locationId, locationName }: { locationId: 
       y_cm: 0,
       z_cm: planY,
       width_cm: sizeX,
-      height_cm: kind === 'window' ? 110 : bounds.heightCm,
+      height_cm: defaultStructureHeightCm,
       depth_cm: sizeY,
     }
     const supabase = createClient()
@@ -141,9 +121,8 @@ export function StructureCreateForm({ locationId, locationName }: { locationId: 
       return
     }
 
-    await loadScene()
     startNew(kind)
-    router.refresh()
+    await invalidateHomeInventory(queryClient)
   }
 
   async function deleteStructure() {
@@ -162,9 +141,8 @@ export function StructureCreateForm({ locationId, locationName }: { locationId: 
       return
     }
 
-    await loadScene()
     startNew(kind)
-    router.refresh()
+    await invalidateHomeInventory(queryClient)
   }
 
   const sizeX = numericValue(draft.sizeX)
@@ -177,7 +155,7 @@ export function StructureCreateForm({ locationId, locationName }: { locationId: 
     id: editingId ?? 'new-structure-preview',
     kind,
     draft,
-    heightCm: bounds.heightCm,
+    heightCm: defaultStructureHeightCm,
     existingCount: structures.filter((structure) => structure.kind === kind).length,
   }) : null
   const previewStructures = previewStructure
@@ -319,7 +297,7 @@ function createPreviewStructure({
     yCm: 0,
     zCm: numericValue(draft.planY),
     widthCm: numericValue(draft.sizeX),
-    heightCm: kind === 'window' ? Math.min(110, heightCm) : heightCm,
+    heightCm,
     depthCm: numericValue(draft.sizeY),
   }
 }

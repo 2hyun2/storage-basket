@@ -31,7 +31,7 @@ type LocalSpaceTreeNodeProps = {
 }
 
 export function LocalSpaceTree() {
-  const { spaces, items, homeLayout, placements, isLoading } = useSupabaseInventory()
+  const { spaces, items, homeLayout, layouts, placements, isLoading } = useSupabaseInventory()
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null)
   const [view, setView] = useState<SpaceView>('tree')
 
@@ -123,6 +123,7 @@ export function LocalSpaceTree() {
         <SpaceOverview3d
           spaces={spaces}
           homeLayout={homeLayout}
+          layouts={layouts}
           placements={placements}
         />
       )}

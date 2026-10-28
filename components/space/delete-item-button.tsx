@@ -1,14 +1,15 @@
 'use client'
 
 import { Trash2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { invalidateHomeInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
 
 export function DeleteItemButton({ itemId, itemName }: { itemId: string; itemName: string }) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
-  const router = useRouter()
+  const queryClient = useQueryClient()
 
   async function deleteItem() {
     if (isDeleting || !window.confirm(`“${itemName}” 물건 기록을 삭제할까요?`)) {
@@ -28,7 +29,7 @@ export function DeleteItemButton({ itemId, itemName }: { itemId: string; itemNam
       return
     }
 
-    router.refresh()
+    await invalidateHomeInventory(queryClient)
   }
 
   return (

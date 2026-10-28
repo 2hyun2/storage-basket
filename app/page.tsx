@@ -8,7 +8,9 @@ import {
   UsersRound,
   type LucideIcon,
 } from 'lucide-react'
+import { redirect } from 'next/navigation'
 import { LandingHomeDemo } from '@/components/landing-home-demo'
+import { createClient } from '@/lib/supabase/server'
 
 type Feature = {
   number: string
@@ -38,7 +40,14 @@ const features: Feature[] = [
   },
 ]
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (user) {
+    redirect('/app')
+  }
+
   return (
     <main className="min-h-dvh overflow-x-hidden bg-[#f8f7ff] text-slate-950">
       <section className="relative isolate overflow-hidden bg-[#211a4c] px-5 pb-12 pt-5 text-white sm:px-8">

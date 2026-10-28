@@ -1,8 +1,9 @@
 'use client'
 
 import { Eye, EyeOff } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { invalidateHomeInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
 
 export function SpacePanelVisibilityButton({
@@ -15,7 +16,7 @@ export function SpacePanelVisibilityButton({
   const [isVisible, setIsVisible] = useState(initialVisibility)
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
-  const router = useRouter()
+  const queryClient = useQueryClient()
 
   async function togglePanel() {
     if (isSaving) {
@@ -38,7 +39,7 @@ export function SpacePanelVisibilityButton({
 
     setIsVisible(nextVisibility)
     setIsSaving(false)
-    router.refresh()
+    await invalidateHomeInventory(queryClient)
   }
 
   return (

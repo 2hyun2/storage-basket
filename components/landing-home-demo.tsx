@@ -24,14 +24,14 @@ export function LandingHomeDemo() {
         <span className="text-violet-600">10cm 격자</span>
       </div>
       <div className="h-72 sm:h-80">
-        <Canvas camera={{ position: [0, 8.5, 0.01], fov: 42 }}>
+        <Canvas camera={{ position: [0, 7.2, 0.01], fov: 42 }}>
           <color attach="background" args={['#fafafa']} />
           <ambientLight intensity={1.6} />
           <directionalLight position={[3, 7, 4]} intensity={1.4} />
           <mesh position={[0, -0.08, 0]}><boxGeometry args={[6, 0.12, 4]} /><meshStandardMaterial color="#f1f5f9" /></mesh>
           <RectangularGrid width={6} depth={4} divisions={40} color="#ddd6fe" />
           {rooms.map((room) => <Room key={room.name} {...room} />)}
-          <OrbitControls target={[0, 0, 0]} enablePan={false} minPolarAngle={0.08} maxPolarAngle={Math.PI / 2 - 0.08} minDistance={6} maxDistance={10} />
+          <OrbitControls target={[0, 0, 0]} enablePan={false} minPolarAngle={0.08} maxPolarAngle={Math.PI / 2 - 0.08} minDistance={4} maxDistance={10} />
         </Canvas>
       </div>
       <div className="grid grid-cols-3 border-t border-slate-100 bg-white text-center text-[10px] font-bold text-slate-500"><span className="py-2">방 3개</span><span className="border-x border-slate-100 py-2">수납공간 6개</span><span className="py-2">미배치 0개</span></div>

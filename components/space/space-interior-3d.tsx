@@ -1,10 +1,12 @@
 'use client'
 
-import { Edges, Html, OrbitControls } from '@react-three/drei'
+import { Edges, OrbitControls, Text } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
+import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useRef, useState, type FormEvent, type PointerEvent } from 'react'
 import { RectangularGrid } from '@/components/space/space-overview-3d'
+import { invalidateHomeInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
 
 export type SceneLayoutData = {
@@ -60,7 +62,30 @@ type DirectItem = {
 }
 
 const centimetresToScene = 0.01
+const defaultSceneHeightCm = 100
 const blockColors = ['#8b5cf6', '#0ea5e9', '#ec4899', '#f59e0b']
+
+function toSceneCenter({
+  xCm,
+  elevationCm,
+  planYCm,
+  widthCm,
+  heightCm,
+  depthCm,
+}: {
+  xCm: number
+  elevationCm: number
+  planYCm: number
+  widthCm: number
+  heightCm: number
+  depthCm: number
+}): [number, number, number] {
+  return [
+    (xCm + widthCm / 2) * centimetresToScene,
+    (elevationCm + heightCm / 2) * centimetresToScene,
+    (planYCm + depthCm / 2) * centimetresToScene,
+  ]
+}
 
 export function SpaceInterior3d({
   spaceName,
@@ -92,7 +117,12 @@ export function SpaceInterior3d({
   }
   const sceneWidth = sceneLayout.widthCm * centimetresToScene
   const sceneDepth = sceneLayout.depthCm * centimetresToScene
-  const cameraHeight = Math.max(sceneWidth, sceneDepth) * 1.8
+  // 내부 공간은 물건·하위 공간의 차이를 바로 읽을 수 있도록 가까운 상단 시점에서 연다.
+  const cameraHeight = Math.max(sceneWidth, sceneDepth) * 1.45
+  const placedChildSpaces = childSpaces.flatMap((child) => {
+    const placement = placements.find((entry) => entry.locationId === child.id)
+    return placement ? [{ child, placement }] : []
+  })
   const unplacedSpaces = childSpaces.filter((child) => !placements.some((placement) => placement.locationId === child.id))
   const [editingSpace, setEditingSpace] = useState<ChildSpace | null>(null)
   const router = useRouter()
@@ -122,14 +152,12 @@ export function SpaceInterior3d({
               onSelect={onStructureSelect ? () => onStructureSelect(structure) : undefined}
             />
           ))}
-          {childSpaces.map((child, index) => (
+          {placedChildSpaces.map(({ child, placement }, index) => (
             <ChildSpaceBlock
               key={child.id}
               child={child}
               index={index}
-              total={childSpaces.length}
-              layout={sceneLayout}
-              placement={placements.find((entry) => entry.locationId === child.id) ?? null}
+              placement={placement}
               nestedChildren={nestedChildren.filter((nestedChild) => nestedChild.parentId === child.id)}
               onEnter={() => router.push(`/app/space/${child.id}`)}
               onEnterNested={(nestedChildId) => router.push(`/app/space/${nestedChildId}`)}
@@ -138,7 +166,7 @@ export function SpaceInterior3d({
           <OrbitControls
             target={[sceneWidth / 2, 0, sceneDepth / 2]}
             enablePan={false}
-            minDistance={5}
+            minDistance={3.5}
             maxDistance={11}
             minPolarAngle={0.08}
             maxPolarAngle={Math.PI / 2 - 0.08}
@@ -204,7 +232,9 @@ function SceneStructureMesh({
   onSelect?: () => void
 }) {
   const width = structure.widthCm * centimetresToScene
-  const height = structure.heightCm * centimetresToScene
+  // 벽·창문은 아직 개별 높이 입력을 제공하지 않는다.
+  // 과거에 서로 다르게 저장된 자동값 대신 공통 기본 높이로 렌더링한다.
+  const height = defaultSceneHeightCm * centimetresToScene
   const depth = structure.depthCm * centimetresToScene
   const color = {
     wall: '#c4b5fd',
@@ -213,11 +243,14 @@ function SceneStructureMesh({
 
   return (
     <group
-      position={[
-        (structure.xCm + structure.widthCm / 2) * centimetresToScene,
-        (structure.yCm + structure.heightCm / 2) * centimetresToScene,
-        (structure.zCm + structure.depthCm / 2) * centimetresToScene,
-      ]}
+      position={toSceneCenter({
+        xCm: structure.xCm,
+        elevationCm: structure.yCm,
+        planYCm: structure.zCm,
+        widthCm: structure.widthCm,
+        heightCm: defaultSceneHeightCm,
+        depthCm: structure.depthCm,
+      })}
     >
       <mesh
         onClick={onSelect}
@@ -230,14 +263,14 @@ function SceneStructureMesh({
         } : undefined}
       >
         <boxGeometry args={[width, height, depth]} />
-        <meshStandardMaterial color={color} transparent opacity={isSelected ? 0.92 : structure.kind === 'wall' ? 0.28 : 0.7} />
+        <meshStandardMaterial color={color} transparent opacity={isSelected ? 0.85 : 0.62} />
         <Edges color={isSelected ? '#7c3aed' : '#e2e8f0'} threshold={15} />
       </mesh>
-      <Html position={[0, height / 2 + 0.08, 0]} center transform sprite distanceFactor={8}>
-        <div className="pointer-events-none rounded bg-slate-950/85 px-1.5 py-0.5 text-[10px] font-bold text-white">
-          {structure.name}
-        </div>
-      </Html>
+      <SceneLabel
+        name={structure.name}
+        position={[0, height / 2 + 0.08, 0]}
+        fontSize={0.1}
+      />
     </group>
   )
 }
@@ -245,8 +278,6 @@ function SceneStructureMesh({
 function ChildSpaceBlock({
   child,
   index,
-  total,
-  layout,
   placement,
   nestedChildren,
   onEnter,
@@ -254,23 +285,28 @@ function ChildSpaceBlock({
 }: {
   child: ChildSpace
   index: number
-  total: number
-  layout: SceneLayoutData
-  placement: ScenePlacementData | null
+  placement: ScenePlacementData
   nestedChildren: SceneNestedChild[]
   onEnter: () => void
   onEnterNested: (nestedChildId: string) => void
 }) {
-  const widthCm = placement?.widthCm ?? 100
-  const heightCm = placement?.heightCm ?? 100
-  const depthCm = placement?.depthCm ?? 80
-  const xCm = placement?.xCm ?? layout.widthCm / 2 + (index - (total - 1) / 2) * 120 - widthCm / 2
-  const yCm = placement?.yCm ?? 0
-  const zCm = placement?.zCm ?? layout.depthCm / 2 - depthCm / 2
+  const widthCm = placement.widthCm
+  const heightCm = placement.heightCm
+  const depthCm = placement.depthCm
+  const xCm = placement.xCm
+  const yCm = placement.yCm
+  const zCm = placement.zCm
   const color = blockColors[index % blockColors.length]
 
   return (
-    <group position={[(xCm + widthCm / 2) * centimetresToScene, (yCm + heightCm / 2) * centimetresToScene, (zCm + depthCm / 2) * centimetresToScene]}>
+    <group position={toSceneCenter({
+      xCm,
+      elevationCm: yCm,
+      planYCm: zCm,
+      widthCm,
+      heightCm,
+      depthCm,
+    })}>
       <mesh
         onClick={onEnter}
         onPointerEnter={(event) => { event.stopPropagation(); document.body.style.cursor = 'pointer' }}
@@ -292,17 +328,10 @@ function ChildSpaceBlock({
         />
       ))}
       {child.is_panel_visible !== false && (
-        <Html
+        <SceneLabel
+          name={child.name}
           position={[0, heightCm * centimetresToScene / 2 + 0.1, 0]}
-          center
-          transform
-          sprite
-          distanceFactor={8}
-        >
-          <div className="pointer-events-none min-w-20 rounded-lg border border-white/20 bg-slate-950/90 px-2 py-1.5 text-center text-xs font-extrabold text-white shadow-lg">
-            {child.name}
-          </div>
-        </Html>
+        />
       )}
     </group>
   )
@@ -333,7 +362,7 @@ function NestedSpaceBlock({
     <group
       position={[
         (nestedChild.xCm + nestedChild.widthCm / 2) * centimetresToScene - parentWidth / 2,
-        parentHeight / 2 + 0.035,
+        -parentHeight / 2 + 0.035,
         (nestedChild.zCm + nestedChild.depthCm / 2) * centimetresToScene - parentDepth / 2,
       ]}
     >
@@ -347,12 +376,39 @@ function NestedSpaceBlock({
         <Edges color="#ffffff" threshold={15} />
       </mesh>
       {nestedChild.isPanelVisible && (
-        <Html position={[0, 0.09, 0]} center transform sprite distanceFactor={9}>
-          <div className="pointer-events-none max-w-20 truncate rounded border border-white/30 bg-slate-950/90 px-1.5 py-0.5 text-[9px] font-extrabold text-white">
-            {nestedChild.name}
-          </div>
-        </Html>
+        <SceneLabel name={nestedChild.name} position={[0, 0.09, 0]} fontSize={0.09} />
       )}
+    </group>
+  )
+}
+
+function SceneLabel({
+  name,
+  position,
+  fontSize = 0.13,
+}: {
+  name: string
+  position: [number, number, number]
+  fontSize?: number
+}) {
+  const width = Math.max(0.72, Math.min(1.8, name.length * fontSize * 1.7 + 0.28))
+
+  return (
+    <group position={position} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh>
+        <planeGeometry args={[width, fontSize * 2.7]} />
+        <meshBasicMaterial color="#0f172a" transparent opacity={0.88} />
+      </mesh>
+      <Text
+        position={[0, 0, 0.01]}
+        fontSize={fontSize}
+        anchorX="center"
+        anchorY="middle"
+        color="#ffffff"
+        maxWidth={width - 0.12}
+      >
+        {name}
+      </Text>
     </group>
   )
 }
@@ -373,7 +429,7 @@ export function PlacementEditor({
   onClose: () => void
 }) {
   const [message, setMessage] = useState<string | null>(null)
-  const router = useRouter()
+  const queryClient = useQueryClient()
   const [draft, setDraft] = useState({
     x: placement?.xCm ?? 0,
     y: placement?.zCm ?? 0,
@@ -422,8 +478,8 @@ export function PlacementEditor({
       return
     }
 
+    await invalidateHomeInventory(queryClient)
     onClose()
-    router.refresh()
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -472,8 +528,8 @@ export function PlacementEditor({
       return
     }
 
+    await invalidateHomeInventory(queryClient)
     onClose()
-    router.refresh()
   }
 
   const fields = [

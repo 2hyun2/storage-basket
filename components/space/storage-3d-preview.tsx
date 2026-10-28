@@ -76,7 +76,7 @@ export function Storage3dPreview({
       </div>
       <div className="relative h-72">
         <Canvas
-          camera={{ position: [0, 8, 0.01], fov: 42 }}
+          camera={{ position: [0, 6.8, 0.01], fov: 42 }}
           onPointerMissed={() => {
             setHoveredTarget(null)
             setPinnedTarget(null)
@@ -104,7 +104,7 @@ export function Storage3dPreview({
           <OrbitControls
             target={[0, 0, 0]}
             enablePan={false}
-            minDistance={4}
+            minDistance={3}
             maxDistance={10}
             minPolarAngle={0.08}
             maxPolarAngle={Math.PI / 2 - 0.08}

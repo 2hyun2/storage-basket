@@ -12,3 +12,19 @@ body {
 body {
   margin: 0;
 }
+
+/* 클릭으로 동작하는 영역은 화면 전체에서 같은 손가락 커서로 구분한다. */
+a[href],
+button:not(:disabled),
+[role='button'],
+select,
+input[type='checkbox'],
+input[type='radio'],
+input[type='range'] {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled='true'] {
+  cursor: not-allowed;
+}

@@ -1,8 +1,10 @@
 'use client'
 
 import { Trash2 } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { invalidateHomeInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
 
 type DeleteSpaceButtonProps = {
@@ -21,6 +23,7 @@ export function DeleteSpaceButton({
   const [message, setMessage] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const router = useRouter()
+  const queryClient = useQueryClient()
   const canDelete = childCount === 0 && itemCount === 0
 
   async function deleteSpace() {
@@ -50,8 +53,8 @@ export function DeleteSpaceButton({
       return
     }
 
+    await invalidateHomeInventory(queryClient)
     router.push('/app/space')
-    router.refresh()
   }
 
   return (

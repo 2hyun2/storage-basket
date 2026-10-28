@@ -1,9 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import { useQuery, type QueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import type { LocalItem } from '@/lib/space/local-items'
 import type { LocalSpace } from '@/lib/space/local-spaces'
+
+export const HOME_INVENTORY_QUERY_KEY = ['home-inventory'] as const
 
 export type HomeLayout = {
   id: string
@@ -13,6 +16,8 @@ export type HomeLayout = {
 }
 
 export type SpacePlacement = {
+  id: string
+  layoutId: string
   locationId: string
   xCm: number
   yCm: number
@@ -22,83 +27,127 @@ export type SpacePlacement = {
   depthCm: number
 }
 
-export function useSupabaseInventory() {
-  const [spaces, setSpaces] = useState<LocalSpace[]>([])
-  const [items, setItems] = useState<LocalItem[]>([])
-  const [homeId, setHomeId] = useState<string | null>(null)
-  const [homeLayout, setHomeLayout] = useState<HomeLayout | null>(null)
-  const [placements, setPlacements] = useState<SpacePlacement[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+export type SceneStructure = {
+  id: string
+  layoutId: string
+  kind: 'wall' | 'window'
+  name: string
+  xCm: number
+  yCm: number
+  zCm: number
+  widthCm: number
+  heightCm: number
+  depthCm: number
+}
 
-  const refresh = useCallback(async () => {
-    const supabase = createClient()
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData.user?.id
+export type SceneLayout = {
+  id: string
+  layoutKey: string
+  sceneLocationId: string | null
+  viewKind: 'plan' | 'interior'
+  widthCm: number
+  heightCm: number
+  depthCm: number
+}
 
-    if (!userId) {
-      setSpaces([])
-      setItems([])
-      setHomeId(null)
-      setHomeLayout(null)
-      setPlacements([])
-      setIsLoading(false)
-      return
+type HomeInventory = {
+  homeId: string | null
+  spaces: LocalSpace[]
+  items: LocalItem[]
+  homeLayout: HomeLayout | null
+  layouts: SceneLayout[]
+  placements: SpacePlacement[]
+  structures: SceneStructure[]
+}
+
+const emptyInventory: HomeInventory = {
+  homeId: null,
+  spaces: [],
+  items: [],
+  homeLayout: null,
+  layouts: [],
+  placements: [],
+  structures: [],
+}
+
+async function fetchHomeInventory(): Promise<HomeInventory> {
+  const supabase = createClient()
+  const { data: userData } = await supabase.auth.getUser()
+  const userId = userData.user?.id
+
+  if (!userId) {
+    return emptyInventory
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from('home_members')
+    .select('home_id')
+    .eq('user_id', userId)
+    .order('joined_at')
+    .limit(1)
+    .maybeSingle()
+
+  if (membershipError) {
+    throw membershipError
+  }
+
+  if (!membership) {
+    return emptyInventory
+  }
+
+  const [locationsResult, itemsResult, layoutsResult] = await Promise.all([
+    supabase
+      .from('locations')
+      .select('id, name, parent_id, created_at, is_panel_visible')
+      .eq('home_id', membership.home_id)
+      .is('deleted_at', null)
+      .order('created_at'),
+    supabase
+      .from('items')
+      .select('id, title, location_id, quantity, unit, category, note, created_at')
+      .eq('home_id', membership.home_id)
+      .is('deleted_at', null)
+      .order('created_at'),
+    supabase
+      .from('space_layouts')
+      .select('id, layout_key, scene_location_id, view_kind, width_cm, height_cm, depth_cm')
+      .eq('home_id', membership.home_id),
+  ])
+
+  for (const result of [locationsResult, itemsResult, layoutsResult]) {
+    if (result.error) {
+      throw result.error
     }
+  }
 
-    const { data: membership } = await supabase
-      .from('home_members')
-      .select('home_id')
-      .eq('user_id', userId)
-      .order('joined_at')
-      .limit(1)
-      .maybeSingle()
+  const layouts = layoutsResult.data ?? []
+  const layoutIds = layouts.map((layout) => layout.id)
+  const [placementsResult, structuresResult] = layoutIds.length > 0
+    ? await Promise.all([
+        supabase
+          .from('space_placements')
+          .select('id, layout_id, location_id, x_cm, y_cm, z_cm, width_cm, height_cm, depth_cm')
+          .in('layout_id', layoutIds),
+        supabase
+          .from('scene_structures')
+          .select('id, layout_id, kind, name, x_cm, y_cm, z_cm, width_cm, height_cm, depth_cm')
+          .in('layout_id', layoutIds),
+      ])
+    : [{ data: [], error: null }, { data: [], error: null }]
 
-    if (!membership) {
-      setSpaces([])
-      setItems([])
-      setHomeId(null)
-      setHomeLayout(null)
-      setPlacements([])
-      setIsLoading(false)
-      return
-    }
+  if (placementsResult.error) {
+    throw placementsResult.error
+  }
 
-    setHomeId(membership.home_id)
-    const [locationsResult, itemsResult, layoutsResult] = await Promise.all([
-      supabase.from('locations').select('*').eq('home_id', membership.home_id).is('deleted_at', null).order('created_at'),
-      supabase.from('items').select('*').eq('home_id', membership.home_id).is('deleted_at', null).order('created_at'),
-      supabase.from('space_layouts').select('id, width_cm, height_cm, depth_cm').eq('home_id', membership.home_id).eq('layout_key', 'home').maybeSingle(),
-    ])
+  if (structuresResult.error) {
+    throw structuresResult.error
+  }
 
-    const layout = layoutsResult.data
+  const homeLayoutRow = layouts.find((layout) => layout.layout_key === 'home')
 
-    if (layout) {
-      const placementsResult = await supabase
-        .from('space_placements')
-        .select('location_id, x_cm, y_cm, z_cm, width_cm, height_cm, depth_cm')
-        .eq('layout_id', layout.id)
-
-      setHomeLayout({
-        id: layout.id,
-        widthCm: Number(layout.width_cm),
-        heightCm: Number(layout.height_cm),
-        depthCm: Number(layout.depth_cm),
-      })
-      setPlacements((placementsResult.data ?? []).map((placement) => ({
-        locationId: placement.location_id,
-        xCm: Number(placement.x_cm),
-        yCm: Number(placement.y_cm),
-        zCm: Number(placement.z_cm),
-        widthCm: Number(placement.width_cm),
-        heightCm: Number(placement.height_cm),
-        depthCm: Number(placement.depth_cm),
-      })))
-    } else {
-      setHomeLayout(null)
-      setPlacements([])
-    }
-
-    setSpaces((locationsResult.data ?? []).map((location) => ({
+  return {
+    homeId: membership.home_id,
+    spaces: (locationsResult.data ?? []).map((location) => ({
       id: location.id,
       name: location.name,
       parentId: location.parent_id,
@@ -106,8 +155,8 @@ export function useSupabaseInventory() {
       placement: null,
       createdAt: location.created_at,
       isPanelVisible: location.is_panel_visible,
-    })))
-    setItems((itemsResult.data ?? []).map((item) => ({
+    })),
+    items: (itemsResult.data ?? []).map((item) => ({
       id: item.id,
       title: item.title,
       locationId: item.location_id ?? '',
@@ -116,17 +165,68 @@ export function useSupabaseInventory() {
       category: item.category,
       note: item.note,
       createdAt: item.created_at,
-    })))
-    setIsLoading(false)
-  }, [])
+    })),
+    homeLayout: homeLayoutRow
+      ? {
+          id: homeLayoutRow.id,
+          widthCm: Number(homeLayoutRow.width_cm),
+          heightCm: Number(homeLayoutRow.height_cm),
+          depthCm: Number(homeLayoutRow.depth_cm),
+        }
+      : null,
+    layouts: layouts.map((layout) => ({
+      id: layout.id,
+      layoutKey: layout.layout_key,
+      sceneLocationId: layout.scene_location_id,
+      viewKind: layout.view_kind as SceneLayout['viewKind'],
+      widthCm: Number(layout.width_cm),
+      heightCm: Number(layout.height_cm),
+      depthCm: Number(layout.depth_cm),
+    })),
+    placements: (placementsResult.data ?? []).map((placement) => ({
+      id: placement.id,
+      layoutId: placement.layout_id,
+      locationId: placement.location_id,
+      xCm: Number(placement.x_cm),
+      yCm: Number(placement.y_cm),
+      zCm: Number(placement.z_cm),
+      widthCm: Number(placement.width_cm),
+      heightCm: Number(placement.height_cm),
+      depthCm: Number(placement.depth_cm),
+    })),
+    structures: (structuresResult.data ?? []).map((structure) => ({
+      id: structure.id,
+      layoutId: structure.layout_id,
+      kind: structure.kind as SceneStructure['kind'],
+      name: structure.name,
+      xCm: Number(structure.x_cm),
+      yCm: Number(structure.y_cm),
+      zCm: Number(structure.z_cm),
+      widthCm: Number(structure.width_cm),
+      heightCm: Number(structure.height_cm),
+      depthCm: Number(structure.depth_cm),
+    })),
+  }
+}
 
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void refresh()
-    }, 0)
+export function invalidateHomeInventory(queryClient: QueryClient) {
+  return queryClient.invalidateQueries({ queryKey: HOME_INVENTORY_QUERY_KEY })
+}
 
-    return () => window.clearTimeout(timeoutId)
-  }, [refresh])
+export function useSupabaseInventory() {
+  const query = useQuery({
+    queryKey: HOME_INVENTORY_QUERY_KEY,
+    queryFn: fetchHomeInventory,
+  })
+  const data = query.data ?? emptyInventory
+  const refresh = useCallback(async () => {
+    await query.refetch()
+  }, [query])
 
-  return { homeId, spaces, items, homeLayout, placements, isLoading, refresh }
+  return {
+    ...data,
+    isLoading: query.isPending,
+    error: query.error,
+    refresh,
+  }
 }
