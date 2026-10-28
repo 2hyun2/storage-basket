@@ -11,6 +11,16 @@ body {
 
 body {
   margin: 0;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* 한국어 문장은 단어 경계에서 줄을 바꾸고, 지나치게 긴 주소·영문만 예외로 끊는다. */
+input,
+textarea,
+code,
+pre {
+  word-break: normal;
 }
 
 /* 클릭으로 동작하는 영역은 화면 전체에서 같은 손가락 커서로 구분한다. */
