@@ -46,6 +46,12 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
   const parentPlacement = location?.parentId
     ? placements.find((placement) => placement.locationId === location.parentId) ?? null
     : null
+  const ownSceneLayout = location
+    ? layouts.find((layout) => layout.sceneLocationId === location.id) ?? null
+    : null
+  const ownPlacement = location && parentLayout
+    ? placements.find((placement) => placement.layoutId === parentLayout.id && placement.locationId === location.id) ?? null
+    : null
 
   useEffect(() => {
     if (!location || !location.parentId || parentLayout || !parentPlacement || !homeId) {
@@ -65,6 +71,34 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
       }, { onConflict: 'home_id,layout_key' })
       .then(() => invalidateHomeInventory(queryClient))
   }, [homeId, location, parentLayout, parentPlacement, queryClient])
+
+  useEffect(() => {
+    if (!location || !ownPlacement || !homeId) {
+      return
+    }
+
+    const isAlreadySynced = ownSceneLayout &&
+      ownSceneLayout.widthCm === ownPlacement.widthCm &&
+      ownSceneLayout.heightCm === ownPlacement.heightCm &&
+      ownSceneLayout.depthCm === ownPlacement.depthCm
+
+    if (isAlreadySynced) {
+      return
+    }
+
+    void createClient()
+      .from('space_layouts')
+      .upsert({
+        home_id: homeId,
+        scene_location_id: location.id,
+        layout_key: `location:${location.id}`,
+        view_kind: 'interior',
+        width_cm: ownPlacement.widthCm,
+        height_cm: ownPlacement.heightCm,
+        depth_cm: ownPlacement.depthCm,
+      }, { onConflict: 'home_id,layout_key' })
+      .then(() => invalidateHomeInventory(queryClient))
+  }, [homeId, location, ownPlacement, ownSceneLayout, queryClient])
 
   if (isLoading) {
     return <SpaceDetailLoading />
@@ -86,7 +120,7 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
   const directItems = items
     .filter((item) => item.locationId === location.id)
     .sort((left, right) => left.title.localeCompare(right.title, 'ko'))
-  const sceneLayoutRow = layouts.find((layout) => layout.sceneLocationId === location.id) ?? null
+  const sceneLayoutRow = ownSceneLayout
   const sceneLayout = toSceneLayout(sceneLayoutRow)
   const scenePlacements = sceneLayoutRow
     ? placements.filter((placement) => placement.layoutId === sceneLayoutRow.id)
@@ -165,7 +199,7 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
             <p className="font-extrabold text-slate-900">공간 정보</p>
             <p className="mt-1 leading-6 text-slate-500">
               {sceneLayout
-                ? `3D 크기 ${sceneLayout.widthCm} × ${sceneLayout.depthCm}cm${sceneLayout.heightCm ? ` · 높이 ${sceneLayout.heightCm}cm` : ''}`
+                ? `가로 X ${sceneLayout.widthCm}cm · 세로 Y ${sceneLayout.depthCm}cm${sceneLayout.heightCm ? ` · 높이 ${sceneLayout.heightCm}cm` : ''}`
                 : '아직 3D 자리와 크기를 정하지 않은 텍스트 공간입니다.'}
             </p>
           </div>

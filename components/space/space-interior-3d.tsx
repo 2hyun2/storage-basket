@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useRef, useState, type FormEvent, type PointerEvent } from 'react'
 import { RectangularGrid } from '@/components/space/space-overview-3d'
-import { invalidateHomeInventory } from '@/lib/space/use-supabase-inventory'
+import { invalidateHomeInventory, useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
 
 export type SceneLayoutData = {
@@ -430,6 +430,12 @@ export function PlacementEditor({
 }) {
   const [message, setMessage] = useState<string | null>(null)
   const queryClient = useQueryClient()
+  const {
+    homeId,
+    layouts,
+    placements: allPlacements,
+    structures: allStructures,
+  } = useSupabaseInventory()
   const [draft, setDraft] = useState({
     x: placement?.xCm ?? 0,
     y: placement?.zCm ?? 0,
@@ -461,6 +467,13 @@ export function PlacementEditor({
     top: Math.max(0, draft.y),
     bottom: Math.max(0, bounds.depthCm - (draft.y + draft.depth)),
   } : null
+  const ownSceneLayout = layouts.find((entry) => entry.sceneLocationId === space.id) ?? null
+  const ownSceneContent = ownSceneLayout
+    ? [
+        ...allPlacements.filter((entry) => entry.layoutId === ownSceneLayout.id),
+        ...allStructures.filter((entry) => entry.layoutId === ownSceneLayout.id),
+      ]
+    : []
 
   async function removePlacement() {
     if (!placement || !window.confirm(`“${space.name}”의 3D 자리만 지울까요?\n공간 이름과 안의 물건은 그대로 남습니다.`)) {
@@ -484,7 +497,7 @@ export function PlacementEditor({
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!layoutId) {
+    if (!layoutId || !homeId) {
       setMessage('이 공간의 3D 장면을 먼저 만들어야 합니다.')
       return
     }
@@ -509,6 +522,16 @@ export function PlacementEditor({
       return
     }
 
+    const outOfBoundsOwnContent = ownSceneContent.find((entry) => (
+      entry.xCm + entry.widthCm > draft.width ||
+      entry.zCm + entry.depthCm > draft.depth ||
+      entry.yCm + entry.heightCm > draft.height
+    ))
+    if (outOfBoundsOwnContent) {
+      setMessage('이 공간 안에 이미 배치된 공간 또는 벽·창문이 새 크기를 벗어납니다. 먼저 내부 배치를 조정해 주세요.')
+      return
+    }
+
     const payload = {
       layout_id: layoutId,
       location_id: space.id,
@@ -519,12 +542,29 @@ export function PlacementEditor({
       height_cm: draft.height,
       depth_cm: draft.depth,
     }
+    const supabase = createClient()
     const query = placement
-      ? createClient().from('space_placements').update(payload).eq('id', placement.id)
-      : createClient().from('space_placements').insert(payload)
+      ? supabase.from('space_placements').update(payload).eq('id', placement.id)
+      : supabase.from('space_placements').insert(payload)
     const { error } = await query
     if (error) {
       setMessage(error.message)
+      return
+    }
+
+    const { error: layoutError } = await supabase
+      .from('space_layouts')
+      .upsert({
+        home_id: homeId,
+        scene_location_id: space.id,
+        layout_key: `location:${space.id}`,
+        view_kind: 'interior',
+        width_cm: draft.width,
+        height_cm: draft.height,
+        depth_cm: draft.depth,
+      }, { onConflict: 'home_id,layout_key' })
+    if (layoutError) {
+      setMessage(layoutError.message)
       return
     }
 
@@ -554,13 +594,15 @@ export function PlacementEditor({
           {wallDistances && <p><strong>현재 배치에서 벽까지:</strong> 왼쪽 {wallDistances.left}cm · 오른쪽 {wallDistances.right}cm · 위 {wallDistances.top}cm · 아래 {wallDistances.bottom}cm</p>}
         </div>
         <p className="mt-2 text-xs font-bold text-slate-600">드래그 결과는 아래에서 1cm 단위 정밀 조정</p>
-        <div className="mt-2 space-y-2">
+        <div className="mt-2 space-y-3">
           <div className="grid grid-cols-2 gap-2">
+            <p className="col-span-2 text-xs font-extrabold text-slate-700">시작 위치 · X는 왼쪽→오른쪽, Y는 위쪽→아래쪽</p>
             {fields.slice(0, 2).map(([key, label, max]) => (
               <NumberInput key={key} label={`${label} · 최대 ${max ?? '?'}cm`} min={0} max={max} value={draft[key]} onChange={(value) => setDraft({ ...draft, [key]: value })} />
             ))}
           </div>
           <div className="grid grid-cols-2 gap-2">
+            <p className="col-span-2 text-xs font-extrabold text-slate-700">공간 크기 · 가로는 X, 세로는 Y</p>
             {fields.slice(2).map(([key, label, max]) => (
               <NumberInput key={key} label={`${label} · 최대 ${max ?? '?'}cm`} min={1} max={max} value={draft[key]} onChange={(value) => setDraft({ ...draft, [key]: value })} />
             ))}
@@ -573,7 +615,7 @@ export function PlacementEditor({
         {isDuplex && (
           <div className="mt-2 grid grid-cols-2 gap-2">
             <NumberInput label={`공간 높이 · 최대 ${bounds?.heightCm ?? '?'}cm`} min={1} max={bounds?.heightCm} value={draft.height} onChange={(height) => setDraft({ ...draft, height })} />
-            <NumberInput label={`공간 좌표 Z · 최대 ${bounds ? Math.max(0, bounds.heightCm - draft.height) : '?'}cm`} min={0} max={bounds ? Math.max(0, bounds.heightCm - draft.height) : undefined} value={draft.z} onChange={(z) => setDraft({ ...draft, z })} />
+            <NumberInput label={`층 위치 Z · 최대 ${bounds ? Math.max(0, bounds.heightCm - draft.height) : '?'}cm`} min={0} max={bounds ? Math.max(0, bounds.heightCm - draft.height) : undefined} value={draft.z} onChange={(z) => setDraft({ ...draft, z })} />
           </div>
         )}
         {overlappingSibling && <p className="mt-2 text-xs font-bold text-rose-700">현재 위치는 “{overlappingSibling.name}”과 겹칩니다.</p>}
@@ -611,6 +653,8 @@ function DragPlacementCanvas({ draft, bounds, siblings, isOverlapping, onChange 
   function end(event: PointerEvent<HTMLDivElement>) { if (!startRef.current) return; const next = point(event); const x = Math.min(startRef.current.x, next.x); const y = Math.min(startRef.current.y, next.y); onChange({ ...draft, x, y, width: Math.max(1, Math.abs(next.x - startRef.current.x)), depth: Math.max(1, Math.abs(next.y - startRef.current.y)) }); startRef.current = null }
   return (
     <div ref={canvasRef} onPointerDown={start} onPointerUp={end} style={{ aspectRatio: `${widthCm} / ${depthCm}` }} className="relative mt-4 w-full cursor-crosshair overflow-hidden border-2 border-violet-200 bg-[linear-gradient(#ede9fe_1px,transparent_1px),linear-gradient(90deg,#ede9fe_1px,transparent_1px)] [background-size:10px_10px]">
+      <div className="pointer-events-none absolute left-2 top-2 z-[1] rounded bg-white/90 px-2 py-1 text-[10px] font-extrabold text-violet-800">X 가로 →</div>
+      <div className="pointer-events-none absolute bottom-2 left-2 z-[1] rounded bg-white/90 px-2 py-1 text-[10px] font-extrabold text-violet-800">↓ Y 세로</div>
       {siblings.map((sibling) => {
         const blockedLeft = Math.max(0, sibling.xCm - draft.width)
         const blockedTop = Math.max(0, sibling.zCm - draft.depth)

@@ -229,10 +229,12 @@ export function StructureCreateForm({
           <p className="mt-1 text-xs leading-5 text-slate-500">X는 왼쪽→오른쪽, Y는 위쪽→아래쪽입니다. 창문은 벽의 자식이 아닌 별도 건축 영역이며, 문은 벽 구간을 비워 개구부로 표현합니다.</p>
           <div className="mt-4 space-y-3">
             <div className="grid grid-cols-2 gap-2">
+              <p className="col-span-2 text-xs font-extrabold text-slate-700">시작 위치 · X는 왼쪽→오른쪽, Y는 위쪽→아래쪽</p>
               <NumberField label={`좌표 X · 최대 ${maxStartX ?? '?'}cm`} value={draft.planX} min={0} max={maxStartX ?? undefined} onChange={(planX) => setDraft({ ...draft, planX })} />
               <NumberField label={`좌표 Y · 최대 ${maxStartY ?? '?'}cm`} value={draft.planY} min={0} max={maxStartY ?? undefined} onChange={(planY) => setDraft({ ...draft, planY })} />
             </div>
             <div className="grid grid-cols-2 gap-2">
+              <p className="col-span-2 text-xs font-extrabold text-slate-700">구조물 크기 · 가로는 X, 세로는 Y</p>
               <NumberField label={`가로 X · 최대 ${maxSizeX ?? '?'}cm`} value={draft.sizeX} min={1} max={maxSizeX ?? undefined} onChange={(sizeX) => setDraft({ ...draft, sizeX })} />
               <NumberField label={`세로 Y · 최대 ${maxSizeY ?? '?'}cm`} value={draft.sizeY} min={1} max={maxSizeY ?? undefined} onChange={(sizeY) => setDraft({ ...draft, sizeY })} />
             </div>
