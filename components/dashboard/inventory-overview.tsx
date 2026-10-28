@@ -77,7 +77,7 @@ export function InventoryOverview({ displayName }: InventoryOverviewProps) {
         <section className="mt-4 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
-              <h2 className="text-lg font-extrabold tracking-tight text-slate-900">빠른 물건 찾기</h2>
+              <h2 className="text-lg font-extrabold tracking-tight text-slate-900">물건 검색하기</h2>
               <p className="mt-1 text-sm text-slate-500">물건명, 분류, 보관 위치로 바로 찾습니다.</p>
             </div>
             <Link href="/app/items" className="inline-flex items-center gap-1 text-sm font-bold text-violet-700 hover:text-violet-900">

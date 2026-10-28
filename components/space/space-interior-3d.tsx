@@ -47,6 +47,12 @@ type ChildSpace = {
   is_panel_visible?: boolean
 }
 
+export type SceneNestedChild = ScenePlacementData & {
+  parentId: string
+  name: string
+  isPanelVisible: boolean
+}
+
 type DirectItem = {
   title: string
   quantity: number
@@ -64,6 +70,7 @@ export function SpaceInterior3d({
   layoutId,
   placements,
   structures,
+  nestedChildren = [],
   onStructureSelect,
   selectedStructureId,
 }: {
@@ -74,6 +81,7 @@ export function SpaceInterior3d({
   layoutId: string | null
   placements: ScenePlacementData[]
   structures: SceneStructureData[]
+  nestedChildren?: SceneNestedChild[]
   onStructureSelect?: (structure: SceneStructureData) => void
   selectedStructureId?: string | null
 }) {
@@ -87,6 +95,7 @@ export function SpaceInterior3d({
   const cameraHeight = Math.max(sceneWidth, sceneDepth) * 1.8
   const unplacedSpaces = childSpaces.filter((child) => !placements.some((placement) => placement.locationId === child.id))
   const [editingSpace, setEditingSpace] = useState<ChildSpace | null>(null)
+  const router = useRouter()
 
   return (
     <section className="mt-6 overflow-hidden border border-slate-200 bg-white shadow-inner">
@@ -105,7 +114,6 @@ export function SpaceInterior3d({
           <ambientLight intensity={1.35} />
           <directionalLight position={[4, 7, 4]} intensity={2.1} />
           <SceneFloor layout={sceneLayout} />
-          <AutoOuterWalls layout={sceneLayout} />
           {structures.map((structure) => (
             <SceneStructureMesh
               key={structure.id}
@@ -122,7 +130,9 @@ export function SpaceInterior3d({
               total={childSpaces.length}
               layout={sceneLayout}
               placement={placements.find((entry) => entry.locationId === child.id) ?? null}
-              onEdit={() => setEditingSpace(child)}
+              nestedChildren={nestedChildren.filter((nestedChild) => nestedChild.parentId === child.id)}
+              onEnter={() => router.push(`/app/space/${child.id}`)}
+              onEnterNested={(nestedChildId) => router.push(`/app/space/${nestedChildId}`)}
             />
           ))}
           <OrbitControls
@@ -184,31 +194,6 @@ function SceneFloor({ layout }: { layout: SceneLayoutData }) {
   )
 }
 
-function AutoOuterWalls({ layout }: { layout: SceneLayoutData }) {
-  const width = layout.widthCm * centimetresToScene
-  const height = layout.heightCm * centimetresToScene
-  const depth = layout.depthCm * centimetresToScene
-  const thickness = Math.min(0.08, Math.max(0.025, Math.min(width, depth) * 0.02))
-  const walls = [
-    { position: [width / 2, height / 2, thickness / 2], size: [width, height, thickness] },
-    { position: [width / 2, height / 2, depth - thickness / 2], size: [width, height, thickness] },
-    { position: [thickness / 2, height / 2, depth / 2], size: [thickness, height, depth] },
-    { position: [width - thickness / 2, height / 2, depth / 2], size: [thickness, height, depth] },
-  ]
-
-  return (
-    <group>
-      {walls.map((wall, index) => (
-        <mesh key={index} position={wall.position as [number, number, number]}>
-          <boxGeometry args={wall.size as [number, number, number]} />
-          <meshStandardMaterial color="#cbd5e1" transparent opacity={0.18} />
-          <Edges color="#94a3b8" threshold={15} />
-        </mesh>
-      ))}
-    </group>
-  )
-}
-
 function SceneStructureMesh({
   structure,
   isSelected,
@@ -249,7 +234,7 @@ function SceneStructureMesh({
         <Edges color={isSelected ? '#7c3aed' : '#e2e8f0'} threshold={15} />
       </mesh>
       <Html position={[0, height / 2 + 0.08, 0]} center transform sprite distanceFactor={8}>
-        <div className="rounded bg-slate-950/85 px-1.5 py-0.5 text-[10px] font-bold text-white">
+        <div className="pointer-events-none rounded bg-slate-950/85 px-1.5 py-0.5 text-[10px] font-bold text-white">
           {structure.name}
         </div>
       </Html>
@@ -263,14 +248,18 @@ function ChildSpaceBlock({
   total,
   layout,
   placement,
-  onEdit,
+  nestedChildren,
+  onEnter,
+  onEnterNested,
 }: {
   child: ChildSpace
   index: number
   total: number
   layout: SceneLayoutData
   placement: ScenePlacementData | null
-  onEdit: () => void
+  nestedChildren: SceneNestedChild[]
+  onEnter: () => void
+  onEnterNested: (nestedChildId: string) => void
 }) {
   const widthCm = placement?.widthCm ?? 100
   const heightCm = placement?.heightCm ?? 100
@@ -283,7 +272,7 @@ function ChildSpaceBlock({
   return (
     <group position={[(xCm + widthCm / 2) * centimetresToScene, (yCm + heightCm / 2) * centimetresToScene, (zCm + depthCm / 2) * centimetresToScene]}>
       <mesh
-        onClick={onEdit}
+        onClick={onEnter}
         onPointerEnter={(event) => { event.stopPropagation(); document.body.style.cursor = 'pointer' }}
         onPointerLeave={() => { document.body.style.cursor = 'auto' }}
       >
@@ -291,6 +280,17 @@ function ChildSpaceBlock({
         <meshStandardMaterial color={color} transparent opacity={0.74} roughness={0.38} />
         <Edges color="#f5f3ff" threshold={15} />
       </mesh>
+      {nestedChildren.map((nestedChild, nestedIndex) => (
+        <NestedSpaceBlock
+          key={nestedChild.id}
+          nestedChild={nestedChild}
+          parentWidthCm={widthCm}
+          parentHeightCm={heightCm}
+          parentDepthCm={depthCm}
+          color={blockColors[(index + nestedIndex + 1) % blockColors.length]}
+          onEnter={() => onEnterNested(nestedChild.locationId)}
+        />
+      ))}
       {child.is_panel_visible !== false && (
         <Html
           position={[0, heightCm * centimetresToScene / 2 + 0.1, 0]}
@@ -299,8 +299,57 @@ function ChildSpaceBlock({
           sprite
           distanceFactor={8}
         >
-          <div className="min-w-20 rounded-lg border border-white/20 bg-slate-950/90 px-2 py-1.5 text-center text-xs font-extrabold text-white shadow-lg">
+          <div className="pointer-events-none min-w-20 rounded-lg border border-white/20 bg-slate-950/90 px-2 py-1.5 text-center text-xs font-extrabold text-white shadow-lg">
             {child.name}
+          </div>
+        </Html>
+      )}
+    </group>
+  )
+}
+
+function NestedSpaceBlock({
+  nestedChild,
+  parentWidthCm,
+  parentHeightCm,
+  parentDepthCm,
+  color,
+  onEnter,
+}: {
+  nestedChild: SceneNestedChild
+  parentWidthCm: number
+  parentHeightCm: number
+  parentDepthCm: number
+  color: string
+  onEnter: () => void
+}) {
+  const width = nestedChild.widthCm * centimetresToScene
+  const depth = nestedChild.depthCm * centimetresToScene
+  const parentWidth = parentWidthCm * centimetresToScene
+  const parentDepth = parentDepthCm * centimetresToScene
+  const parentHeight = parentHeightCm * centimetresToScene
+
+  return (
+    <group
+      position={[
+        (nestedChild.xCm + nestedChild.widthCm / 2) * centimetresToScene - parentWidth / 2,
+        parentHeight / 2 + 0.035,
+        (nestedChild.zCm + nestedChild.depthCm / 2) * centimetresToScene - parentDepth / 2,
+      ]}
+    >
+      <mesh
+        onClick={onEnter}
+        onPointerEnter={(event) => { event.stopPropagation(); document.body.style.cursor = 'pointer' }}
+        onPointerLeave={() => { document.body.style.cursor = 'auto' }}
+      >
+        <boxGeometry args={[width, 0.06, depth]} />
+        <meshStandardMaterial color={color} transparent opacity={0.88} />
+        <Edges color="#ffffff" threshold={15} />
+      </mesh>
+      {nestedChild.isPanelVisible && (
+        <Html position={[0, 0.09, 0]} center transform sprite distanceFactor={9}>
+          <div className="pointer-events-none max-w-20 truncate rounded border border-white/30 bg-slate-950/90 px-1.5 py-0.5 text-[9px] font-extrabold text-white">
+            {nestedChild.name}
           </div>
         </Html>
       )}
@@ -480,11 +529,11 @@ export function PlacementEditor({
               onClick={() => void removePlacement()}
               className="rounded-xl border border-rose-200 bg-white py-2 text-sm font-extrabold text-rose-700 transition hover:bg-rose-50"
             >
-              3D 자리만 지우기
+              3D 배치 지우기
             </button>
           )}
           <button className="rounded-xl bg-violet-600 py-2 text-sm font-extrabold text-white">
-            자리 저장
+            저장
           </button>
         </div>
       </form>

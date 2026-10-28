@@ -24,7 +24,7 @@ export default async function MyPage() {
       <section className="mx-auto max-w-3xl">
         <Link href="/app" className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-violet-700">
           <ArrowLeft size={17} />
-          대시보드로 돌아가기
+          홈
         </Link>
 
         <div className="mt-7">

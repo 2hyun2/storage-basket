@@ -41,9 +41,5 @@ export function LandingHomeDemo() {
 
 function Room({ name, position, size, color, storage }: { name: string; position: [number, number, number]; size: [number, number]; color: string; storage: string }) {
   const [width, depth] = size
-  return <group position={position}><mesh position={[0, 0.03, 0]}><boxGeometry args={[width, 0.08, depth]} /><meshStandardMaterial color={color} transparent opacity={0.72} /></mesh><Wall position={[-width / 2, 0.45, 0]} size={[0.08, 0.9, depth]} /><Wall position={[width / 2, 0.45, 0]} size={[0.08, 0.9, depth]} /><Wall position={[0, 0.45, -depth / 2]} size={[width, 0.9, 0.08]} /><Html position={[0, 0.13, 0]} center transform sprite distanceFactor={8}><div className="min-w-24 rounded-lg border border-slate-200 bg-white/95 px-2 py-1.5 text-center shadow"><p className="text-xs font-extrabold text-slate-800">{name}</p><p className="mt-0.5 text-[9px] text-slate-500">{storage}</p></div></Html></group>
-}
-
-function Wall({ position, size }: { position: [number, number, number]; size: [number, number, number] }) {
-  return <mesh position={position}><boxGeometry args={size} /><meshStandardMaterial color="#a78bfa" transparent opacity={0.35} /></mesh>
+  return <group position={position}><mesh position={[0, 0.03, 0]}><boxGeometry args={[width, 0.08, depth]} /><meshStandardMaterial color={color} transparent opacity={0.72} /></mesh><Html position={[0, 0.13, 0]} center transform sprite distanceFactor={8}><div className="min-w-24 rounded-lg border border-slate-200 bg-white/95 px-2 py-1.5 text-center shadow"><p className="text-xs font-extrabold text-slate-800">{name}</p><p className="mt-0.5 text-[9px] text-slate-500">{storage}</p></div></Html></group>
 }

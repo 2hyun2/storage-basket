@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, Box, ChevronRight, Construction, House, Package, Plus } from 'lucide-react'
 import {
   type SceneLayoutData,
+  type SceneNestedChild,
   type ScenePlacementData,
   type SceneSiblingPlacement,
   type SceneStructureData,
@@ -69,6 +70,52 @@ export default async function SpaceLocationPage({
   ])
 
   const spacePath = getSpacePath(location.id, allSpacesResult.data ?? [])
+  const directChildren = childrenResult.data ?? []
+  const directChildIds = directChildren.map((child) => child.id)
+  const [grandchildrenResult, childLayoutsResult] = directChildIds.length > 0
+    ? await Promise.all([
+        supabase
+          .from('locations')
+          .select('id, name, parent_id, is_panel_visible')
+          .in('parent_id', directChildIds)
+          .is('deleted_at', null),
+        supabase
+          .from('space_layouts')
+          .select('id, scene_location_id')
+          .in('scene_location_id', directChildIds),
+      ])
+    : [{ data: [] }, { data: [] }]
+  const childLayoutIds = (childLayoutsResult.data ?? []).map((layout) => layout.id)
+  const nestedPlacementsResult = childLayoutIds.length > 0
+    ? await supabase
+        .from('space_placements')
+        .select('id, layout_id, location_id, x_cm, y_cm, z_cm, width_cm, height_cm, depth_cm')
+        .in('layout_id', childLayoutIds)
+    : { data: [] }
+  const grandchildById = new Map((grandchildrenResult.data ?? []).map((child) => [child.id, child]))
+  const layoutOwnerById = new Map((childLayoutsResult.data ?? []).map((layout) => [layout.id, layout.scene_location_id]))
+  const sceneNestedChildren: SceneNestedChild[] = (nestedPlacementsResult.data ?? []).flatMap((placement) => {
+    const nestedChild = grandchildById.get(placement.location_id)
+    const parentId = layoutOwnerById.get(placement.layout_id)
+
+    if (!nestedChild || !parentId || nestedChild.parent_id !== parentId) {
+      return []
+    }
+
+    return [{
+      id: placement.id,
+      locationId: placement.location_id,
+      parentId,
+      name: nestedChild.name,
+      isPanelVisible: nestedChild.is_panel_visible,
+      xCm: Number(placement.x_cm),
+      yCm: Number(placement.y_cm),
+      zCm: Number(placement.z_cm),
+      widthCm: Number(placement.width_cm),
+      heightCm: Number(placement.height_cm),
+      depthCm: Number(placement.depth_cm),
+    }]
+  })
   const { data: sceneLayoutRow } = await supabase
     .from('space_layouts')
     .select('id, width_cm, height_cm, depth_cm')
@@ -232,7 +279,7 @@ export default async function SpaceLocationPage({
           className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 transition hover:text-violet-700"
         >
           <ArrowLeft size={17} />
-          상위 공간으로 돌아가기
+          뒤로가기
         </Link>
 
         {draw === '1' && <DrawPlacementDialog locationId={location.id} name={location.name} layoutId={parentLayout?.id ?? null} placement={editablePlacement} bounds={parentLayout ? { widthCm: Number(parentLayout.width_cm), heightCm: Number(parentLayout.height_cm), depthCm: Number(parentLayout.depth_cm) } : null} siblingPlacements={siblingPlacements} />}
@@ -283,7 +330,7 @@ export default async function SpaceLocationPage({
             href={`/app/space/${location.id}?draw=1`}
             className="inline-flex items-center justify-center rounded-xl bg-violet-600 px-3 py-2 text-sm font-extrabold text-white transition hover:bg-violet-700"
           >
-            {editablePlacement ? '3D 자리 고치기' : '3D 자리 정하기'}
+            {editablePlacement ? '3D 수정' : '3D 자리 정하기'}
           </Link>
         </section>
 
@@ -299,9 +346,10 @@ export default async function SpaceLocationPage({
             layoutId={sceneLayoutRow?.id ?? null}
             placements={scenePlacements}
             structures={sceneStructures}
+            nestedChildren={sceneNestedChildren}
           />
 
-        <section className="mt-6 grid gap-5 lg:grid-cols-2">
+        <section className="mt-6 grid gap-5 lg:grid-cols-3">
           <ContentList title="안에 있는 공간" empty="아직 안에 만든 공간이 없습니다.">
             {childrenResult.data?.map((child) => (
               <Link
@@ -329,6 +377,24 @@ export default async function SpaceLocationPage({
                   <strong>{item.quantity}{item.unit ?? ''}</strong>
                   <DeleteItemButton itemId={item.id} itemName={item.title} />
                 </span>
+              </div>
+            ))}
+          </ContentList>
+
+          <ContentList title="이 공간의 벽·창문" empty="이 공간에 만든 벽이나 창문이 없습니다.">
+            {sceneStructures.map((structure) => (
+              <div
+                key={structure.id}
+                className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-sm"
+              >
+                <span className="flex min-w-0 items-center gap-2 font-bold">
+                  <Construction
+                    size={16}
+                    className={structure.kind === 'window' ? 'text-sky-700' : 'text-stone-700'}
+                  />
+                  {structure.name}
+                </span>
+                <strong>{structure.kind === 'window' ? '창문' : '벽'}</strong>
               </div>
             ))}
           </ContentList>

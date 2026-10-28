@@ -8,7 +8,7 @@ export default function ItemsPage() {
       <section className="mx-auto max-w-5xl">
         <Link href="/app" className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-violet-700">
           <ArrowLeft size={17} />
-          대시보드로 돌아가기
+          홈
         </Link>
         <div className="mt-7 flex items-start gap-3">
           <span className="grid size-10 place-items-center rounded-xl bg-sky-100 text-sky-700"><Package size={20} /></span>

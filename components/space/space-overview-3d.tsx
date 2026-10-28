@@ -109,7 +109,6 @@ function getRoomLayout(
 }
 
 function HouseStructure({ homeLayout }: { homeLayout: HomeLayout | null }) {
-  const wallColor = '#c4b5fd'
   const width = homeLayout ? homeLayout.widthCm * 0.01 : 9
   const depth = homeLayout ? homeLayout.depthCm * 0.01 : 6
   const gridDivisions = Math.min(90, Math.max(12, Math.round(Math.max(width, depth) * 10)))
@@ -121,35 +120,7 @@ function HouseStructure({ homeLayout }: { homeLayout: HomeLayout | null }) {
         <meshStandardMaterial color="#1e293b" roughness={0.75} />
       </mesh>
       <RectangularGrid width={width} depth={depth} divisions={gridDivisions} />
-
-      <Wall position={[-width / 2, 0.7, 0]} size={[0.12, 1.4, depth]} color={wallColor} />
-      <Wall position={[width / 2, 0.7, 0]} size={[0.12, 1.4, depth]} color={wallColor} />
-      <Wall position={[0, 0.7, -depth / 2]} size={[width, 1.4, 0.12]} color={wallColor} />
-      <Wall position={[0, 0.7, depth / 2]} size={[width, 1.4, 0.12]} color={wallColor} />
     </group>
-  )
-}
-
-function Wall({
-  position,
-  size,
-  color,
-}: {
-  position: [number, number, number]
-  size: [number, number, number]
-  color: string
-}) {
-  return (
-    <mesh position={position}>
-      <boxGeometry args={size} />
-      <meshStandardMaterial
-        color={color}
-        transparent
-        opacity={0.32}
-        roughness={0.45}
-        depthWrite={false}
-      />
-    </mesh>
   )
 }
 
@@ -178,27 +149,12 @@ function RoomZone({
         <boxGeometry args={[layout.width, 0.04, layout.depth]} />
         <meshStandardMaterial color={layout.color} transparent opacity={0.24} roughness={0.5} />
       </mesh>
-      <Wall
-        position={[-layout.width / 2, 0.58, 0]}
-        size={[0.08, 1.16, layout.depth]}
-        color={layout.color}
-      />
       <RectangularGrid
         width={layout.width}
         depth={layout.depth}
         divisions={Math.max(6, Math.round(Math.max(layout.width, layout.depth) * 10))}
         positionY={0.035}
         color="#c4b5fd"
-      />
-      <Wall
-        position={[layout.width / 2, 0.58, 0]}
-        size={[0.08, 1.16, layout.depth]}
-        color={layout.color}
-      />
-      <Wall
-        position={[0, 0.58, -layout.depth / 2]}
-        size={[layout.width, 1.16, 0.08]}
-        color={layout.color}
       />
 
       {space.isPanelVisible !== false && (

@@ -9,7 +9,7 @@ export default function SpacePage() {
       <section className="mx-auto max-w-5xl">
         <Link href="/app" className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-violet-700">
           <ArrowLeft size={17} />
-          대시보드로 돌아가기
+          홈
         </Link>
 
         <div className="mt-7 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
