@@ -14,6 +14,7 @@ export type SceneLayoutData = {
   widthCm: number
   heightCm: number
   depthCm: number
+  colorHex?: string
 }
 
 export type ScenePlacementData = {
@@ -36,6 +37,7 @@ export type SceneStructureData = {
   id: string
   kind: 'wall' | 'window'
   name: string
+  colorHex?: string
   xCm: number
   yCm: number
   zCm: number
@@ -100,6 +102,7 @@ export function SpaceInterior3d({
   nestedChildren = [],
   onStructureSelect,
   selectedStructureId,
+  spaceColor,
 }: {
   spaceName: string
   childSpaces: ChildSpace[]
@@ -111,6 +114,7 @@ export function SpaceInterior3d({
   nestedChildren?: SceneNestedChild[]
   onStructureSelect?: (structure: SceneStructureData) => void
   selectedStructureId?: string | null
+  spaceColor?: string
 }) {
   const sceneLayout = layout ?? {
     widthCm: 450,
@@ -145,7 +149,7 @@ export function SpaceInterior3d({
           <color attach="background" args={['#f8fafc']} />
           <ambientLight intensity={1.35} />
           <directionalLight position={[4, 7, 4]} intensity={2.1} />
-          <SceneFloor layout={sceneLayout} />
+          <SceneFloor layout={sceneLayout} color={spaceColor} />
           {structures.map((structure) => (
             <SceneStructureMesh
               key={structure.id}
@@ -206,7 +210,7 @@ export function SpaceInterior3d({
   )
 }
 
-function SceneFloor({ layout }: { layout: SceneLayoutData }) {
+function SceneFloor({ layout, color = '#8B5CF6' }: { layout: SceneLayoutData; color?: string }) {
   const width = layout.widthCm * centimetresToScene
   const depth = layout.depthCm * centimetresToScene
   const divisions = Math.max(8, Math.min(90, Math.round(Math.max(layout.widthCm, layout.depthCm) / 10)))
@@ -215,10 +219,10 @@ function SceneFloor({ layout }: { layout: SceneLayoutData }) {
     <group>
       <mesh position={[width / 2, -0.05, depth / 2]}>
         <boxGeometry args={[width, 0.1, depth]} />
-        <meshStandardMaterial color="#312e81" transparent opacity={0.44} />
+        <meshStandardMaterial color={color} transparent opacity={0.28} />
       </mesh>
       <group position={[width / 2, 0, depth / 2]}>
-        <RectangularGrid width={width} depth={depth} divisions={divisions} color="#a78bfa" />
+        <RectangularGrid width={width} depth={depth} divisions={divisions} color={color} />
       </group>
     </group>
   )
@@ -238,10 +242,11 @@ function SceneStructureMesh({
   // 과거에 서로 다르게 저장된 자동값 대신 공통 기본 높이로 렌더링한다.
   const height = defaultSceneHeightCm * centimetresToScene
   const depth = structure.depthCm * centimetresToScene
-  const color = {
+  const defaultColor = {
     wall: '#c4b5fd',
     window: '#38bdf8',
   }[structure.kind]
+  const color = structure.colorHex ?? defaultColor
 
   return (
     <group

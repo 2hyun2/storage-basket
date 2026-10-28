@@ -231,6 +231,7 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
           placements={scenePlacements}
           structures={sceneStructures}
           nestedChildren={sceneNestedChildren}
+          spaceColor={location.colorHex}
           onStructureSelect={(structure) => router.push(`/app/space/${location.id}/structure/create?edit=${structure.id}`)}
         />
 

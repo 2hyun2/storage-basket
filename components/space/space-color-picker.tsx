@@ -38,6 +38,11 @@ export function SpaceColorPicker({ locationId, initialColor }: { locationId: str
     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
       <Palette size={16} className="text-violet-700" />
       <span className="text-xs font-extrabold text-slate-700">공간 색상</span>
+      <span
+        aria-label="선택한 색상 미리보기"
+        className="size-6 rounded-md border border-slate-300 shadow-sm"
+        style={{ backgroundColor: normalizeSpaceColor(color) ?? getDefaultSpaceColor() }}
+      />
       <input
         type="color"
         value={normalizeSpaceColor(color) ?? getDefaultSpaceColor()}

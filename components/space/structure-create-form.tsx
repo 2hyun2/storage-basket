@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { PanelTop, Pencil, Plus, RectangleHorizontal, Trash2 } from 'lucide-react'
 import { SpaceInterior3d, type SceneLayoutData, type SceneStructureData } from '@/components/space/space-interior-3d'
+import { normalizeSpaceColor } from '@/lib/space/colors'
 import { invalidateHomeInventory, useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
 
@@ -20,6 +21,10 @@ type StructureDraft = {
 
 const emptyDraft: StructureDraft = { name: '', planX: '', planY: '', sizeX: '', sizeY: '' }
 const defaultStructureHeightCm = 100
+
+function getDefaultStructureColor(kind: StructureKind) {
+  return kind === 'window' ? '#38BDF8' : '#C4B5FD'
+}
 
 export function StructureCreateForm({
   locationId,
@@ -45,6 +50,9 @@ export function StructureCreateForm({
     : null
   const [kind, setKind] = useState<StructureKind>(initialStructure?.kind ?? 'wall')
   const [editingId, setEditingId] = useState<string | null>(initialStructure?.id ?? null)
+  const [structureColor, setStructureColor] = useState(
+    initialStructure?.colorHex ?? getDefaultStructureColor(initialStructure?.kind ?? 'wall'),
+  )
   const [draft, setDraft] = useState<StructureDraft>(() => initialStructure ? {
     name: initialStructure.name,
     planX: initialStructure.xCm,
@@ -57,6 +65,7 @@ export function StructureCreateForm({
   function startNew(nextKind: StructureKind = kind) {
     setKind(nextKind)
     setEditingId(null)
+    setStructureColor(getDefaultStructureColor(nextKind))
     setDraft(emptyDraft)
     setMessage(null)
   }
@@ -64,6 +73,7 @@ export function StructureCreateForm({
   function startEdit(structure: StructureRecord) {
     setKind(structure.kind)
     setEditingId(structure.id)
+    setStructureColor(structure.colorHex ?? getDefaultStructureColor(structure.kind))
     setDraft({
       name: structure.name,
       planX: structure.xCm,
@@ -100,6 +110,12 @@ export function StructureCreateForm({
     }
 
     const name = draft.name.trim() || defaultName(kind, structures.filter((entry) => entry.kind === kind).length + 1)
+    const colorHex = normalizeSpaceColor(structureColor)
+    if (!colorHex) {
+      setMessage('색상은 #RRGGBB 형식으로 입력해 주세요.')
+      return
+    }
+
     const payload = {
       layout_id: layoutId,
       kind,
@@ -110,6 +126,7 @@ export function StructureCreateForm({
       width_cm: sizeX,
       height_cm: defaultStructureHeightCm,
       depth_cm: sizeY,
+      color_hex: colorHex,
     }
     const supabase = createClient()
     const query = editingId
@@ -156,6 +173,7 @@ export function StructureCreateForm({
     kind,
     draft,
     heightCm: defaultStructureHeightCm,
+    colorHex: normalizeSpaceColor(structureColor) ?? getDefaultStructureColor(kind),
     existingCount: structures.filter((structure) => structure.kind === kind).length,
   }) : null
   const previewStructures = previewStructure
@@ -223,6 +241,7 @@ export function StructureCreateForm({
         </div>
 
         <Field label="표시 이름" value={draft.name} onChange={(name) => setDraft({ ...draft, name })} placeholder={kind === 'wall' ? '예: 거실 북쪽 벽' : '예: 거실 통창'} />
+        <StructureColorField value={structureColor} onChange={setStructureColor} />
 
         <div className="rounded-2xl bg-slate-50 p-3">
           <p className="text-sm font-extrabold">cm 위치와 크기</p>
@@ -274,6 +293,39 @@ function NumberField({ label, value, min, max, onChange }: { label: string; valu
   return <label className="block"><span className="mb-1.5 block text-xs font-bold text-slate-700">{label}</span><input type="number" value={value} min={min} max={max} onChange={(event) => onChange(event.target.value === '' ? '' : Number(event.target.value))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" /></label>
 }
 
+function StructureColorField({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-bold text-slate-700">표시 색상</span>
+      <span className="mb-2 block text-xs leading-5 text-slate-500">
+        3D 미리보기와 저장된 구조물에 같은 색상으로 표시됩니다.
+      </span>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={normalizeSpaceColor(value) ?? '#C4B5FD'}
+          onChange={(event) => onChange(event.target.value.toUpperCase())}
+          className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
+          aria-label="구조물 색상 선택"
+        />
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value.toUpperCase())}
+          placeholder="#C4B5FD"
+          maxLength={7}
+          className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm uppercase"
+        />
+      </div>
+    </label>
+  )
+}
+
 function defaultName(kind: StructureKind, number: number) {
   return `${kind === 'wall' ? '벽' : '창문'} ${number}`
 }
@@ -283,12 +335,14 @@ function createPreviewStructure({
   kind,
   draft,
   heightCm,
+  colorHex,
   existingCount,
 }: {
   id: string
   kind: StructureKind
   draft: StructureDraft
   heightCm: number
+  colorHex: string
   existingCount: number
 }): StructureRecord {
   return {
@@ -301,6 +355,7 @@ function createPreviewStructure({
     widthCm: numericValue(draft.sizeX),
     heightCm,
     depthCm: numericValue(draft.sizeY),
+    colorHex,
   }
 }
 

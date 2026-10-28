@@ -16,6 +16,7 @@ import type { LocalSpace } from '@/lib/space/local-spaces'
 import {
   type HomeLayout,
   type SceneLayout,
+  type SceneStructure,
   type SpacePlacement,
   useSupabaseInventory,
 } from '@/lib/space/use-supabase-inventory'
@@ -28,7 +29,7 @@ type InventoryOverviewProps = {
 export function InventoryOverview({ displayName }: InventoryOverviewProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const { spaces, items, homeLayout, layouts, placements } = useSupabaseInventory()
+  const { spaces, items, homeLayout, layouts, placements, structures } = useSupabaseInventory()
 
   const itemsWithPath = useMemo(
     () => items.map((item) => ({ ...item, locationPath: getLocationPath(item.locationId, spaces) })),
@@ -133,6 +134,7 @@ export function InventoryOverview({ displayName }: InventoryOverviewProps) {
             homeLayout={homeLayout}
             layouts={layouts}
             placements={placements}
+            structures={structures}
           />
           <QuickLinks />
         </section>
@@ -237,11 +239,13 @@ function Home3dPreview({
   homeLayout,
   layouts,
   placements,
+  structures,
 }: {
   spaces: LocalSpace[]
   homeLayout: HomeLayout | null
   layouts: SceneLayout[]
   placements: SpacePlacement[]
+  structures: SceneStructure[]
 }) {
   return (
     <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
@@ -258,6 +262,7 @@ function Home3dPreview({
           homeLayout={homeLayout}
           layouts={layouts}
           placements={placements}
+          structures={structures}
           compact
         />
       ) : (

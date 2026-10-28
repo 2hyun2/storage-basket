@@ -10,6 +10,7 @@ import { getDefaultSpaceColor } from '@/lib/space/colors'
 import type {
   HomeLayout,
   SceneLayout,
+  SceneStructure,
   SpacePlacement,
 } from '@/lib/space/use-supabase-inventory'
 
@@ -18,12 +19,14 @@ type SpaceOverview3dProps = {
   homeLayout: HomeLayout | null
   layouts: SceneLayout[]
   placements: SpacePlacement[]
+  structures?: SceneStructure[]
   compact?: boolean
 }
 
 type RoomLayout = {
   position: [number, number, number]
   width: number
+  height: number
   depth: number
   color: string
 }
@@ -31,8 +34,21 @@ type RoomLayout = {
 type NestedRoomLayout = {
   position: [number, number, number]
   width: number
+  height: number
   depth: number
   color: string
+}
+
+type StructureLayout = {
+  id: string
+  kind: 'wall' | 'window'
+  name: string
+  position: [number, number, number]
+  width: number
+  height: number
+  depth: number
+  color: string
+  editHref: string | null
 }
 
 export function SpaceOverview3d({
@@ -40,6 +56,7 @@ export function SpaceOverview3d({
   homeLayout,
   layouts = [],
   placements = [],
+  structures = [],
   compact = false,
 }: SpaceOverview3dProps) {
   const router = useRouter()
@@ -48,12 +65,15 @@ export function SpaceOverview3d({
   const homeDepth = homeLayout ? homeLayout.depthCm * 0.01 : 6
   // 처음에는 공간 이름과 내부 배치가 읽히는 가까운 상단 시점으로 시작한다.
   // 전체 평면도는 사용자가 마우스 휠로 한 단계 물러나 확인할 수 있다.
-  const cameraHeight = Math.max(homeWidth, homeDepth) * 1.45
+  const cameraHeight = Math.max(4, Math.max(homeWidth, homeDepth) * 1.05)
   const homePlacements = homeLayout
     ? placements.filter((placement) => placement.layoutId === homeLayout.id)
     : []
   const placedRootSpaces = rootSpaces.filter((space) => homePlacements.some((placement) => placement.locationId === space.id))
   const unplacedRootSpaces = rootSpaces.filter((space) => !homePlacements.some((placement) => placement.locationId === space.id))
+  const homeStructures = homeLayout
+    ? getStructureLayouts(homeLayout, structures)
+    : []
 
   return (
     <div className={`mt-4 overflow-hidden border border-slate-200 bg-white ${compact ? '' : 'shadow-inner'}`}>
@@ -70,11 +90,15 @@ export function SpaceOverview3d({
           <directionalLight position={[5, 8, 4]} intensity={2.5} />
 
           <HouseStructure homeLayout={homeLayout} />
+          {homeStructures.map((structure) => (
+            <StructureZone key={structure.id} structure={structure} />
+          ))}
           {placedRootSpaces.map((space, index) => {
             const layout = getRoomLayout(space, index, homeLayout, homePlacements)
             if (!layout) return null
 
             const nestedSpaces = getNestedSpaces(space, spaces, layouts, placements, index)
+            const nestedStructures = getNestedStructureLayouts(space, layouts, structures)
 
             return (
               <RoomZone
@@ -82,6 +106,7 @@ export function SpaceOverview3d({
                 space={space}
                 layout={layout}
                 nestedSpaces={nestedSpaces}
+                nestedStructures={nestedStructures}
               />
             )
           })}
@@ -123,10 +148,11 @@ function getRoomLayout(
   return {
     position: [
       (placement.xCm + placement.widthCm / 2 - homeLayout.widthCm / 2) * centimetresToScene,
-      0,
+      placement.yCm * centimetresToScene,
       (placement.zCm + placement.depthCm / 2 - homeLayout.depthCm / 2) * centimetresToScene,
     ] as [number, number, number],
     width: placement.widthCm * centimetresToScene,
+    height: toSceneHeight(placement.heightCm),
     depth: placement.depthCm * centimetresToScene,
     color: space.colorHex ?? getDefaultSpaceColor(index),
   }
@@ -163,16 +189,60 @@ function getNestedSpaces(
         layout: {
           position: [
             (placement.xCm + placement.widthCm / 2 - parentScene.widthCm / 2) * centimetresToScene,
-            0.06,
+            placement.yCm * centimetresToScene,
             (placement.zCm + placement.depthCm / 2 - parentScene.depthCm / 2) * centimetresToScene,
           ] as [number, number, number],
           width: placement.widthCm * centimetresToScene,
+          height: toSceneHeight(placement.heightCm),
           depth: placement.depthCm * centimetresToScene,
           color: space.colorHex ?? getDefaultSpaceColor(colorOffset + index + 1),
         } satisfies NestedRoomLayout,
       }
     })
     .filter((entry): entry is { space: LocalSpace, layout: NestedRoomLayout } => entry !== null)
+}
+
+function getStructureLayouts(
+  layout: HomeLayout | SceneLayout,
+  structures: SceneStructure[],
+): StructureLayout[] {
+  const sceneLocationId = 'sceneLocationId' in layout
+    ? layout.sceneLocationId
+    : null
+
+  return structures
+    .filter((structure) => structure.layoutId === layout.id)
+    .map((structure) => ({
+      id: structure.id,
+      kind: structure.kind,
+      name: structure.name,
+      position: [
+        (structure.xCm + structure.widthCm / 2 - layout.widthCm / 2) * 0.01,
+        structure.yCm * 0.01,
+        (structure.zCm + structure.depthCm / 2 - layout.depthCm / 2) * 0.01,
+      ] as [number, number, number],
+      width: structure.widthCm * 0.01,
+      height: toSceneHeight(structure.heightCm),
+      depth: structure.depthCm * 0.01,
+      color: structure.colorHex ?? (structure.kind === 'window' ? '#38BDF8' : '#C4B5FD'),
+      editHref: sceneLocationId
+        ? `/app/space/${sceneLocationId}/structure/create?edit=${structure.id}`
+        : null,
+    }))
+}
+
+function toSceneHeight(heightCm: number) {
+  return (heightCm > 0 ? heightCm : 100) * 0.01
+}
+
+function getNestedStructureLayouts(
+  parentSpace: LocalSpace,
+  layouts: SceneLayout[],
+  structures: SceneStructure[],
+) {
+  const parentScene = layouts.find((layout) => layout.sceneLocationId === parentSpace.id)
+
+  return parentScene ? getStructureLayouts(parentScene, structures) : []
 }
 
 function HouseStructure({ homeLayout }: { homeLayout: HomeLayout | null }) {
@@ -195,17 +265,19 @@ function RoomZone({
   space,
   layout,
   nestedSpaces,
+  nestedStructures,
 }: {
   space: LocalSpace
   layout: RoomLayout
   nestedSpaces: Array<{ space: LocalSpace, layout: NestedRoomLayout }>
+  nestedStructures: StructureLayout[]
 }) {
   const router = useRouter()
 
   return (
     <group position={layout.position}>
       <mesh
-        position={[0, 0.01, 0]}
+        position={[0, layout.height / 2, 0]}
         onClick={() => router.push(`/app/space/${space.id}`)}
         onPointerEnter={(event) => {
           event.stopPropagation()
@@ -215,8 +287,8 @@ function RoomZone({
           document.body.style.cursor = 'auto'
         }}
       >
-        <boxGeometry args={[layout.width, 0.04, layout.depth]} />
-        <meshStandardMaterial color={layout.color} transparent opacity={0.18} roughness={0.5} />
+        <boxGeometry args={[layout.width, layout.height, layout.depth]} />
+        <meshStandardMaterial color={layout.color} transparent opacity={0.16} roughness={0.5} />
       </mesh>
       <RectangularGrid
         width={layout.width}
@@ -227,7 +299,7 @@ function RoomZone({
       />
 
       {space.isPanelVisible !== false && (
-        <SpaceLabel name={space.name} />
+        <SpaceLabel name={space.name} position={[0, layout.height + 0.08, 0]} />
       )}
 
       {nestedSpaces.map(({ space: nestedSpace, layout: nestedLayout }) => (
@@ -237,6 +309,53 @@ function RoomZone({
           layout={nestedLayout}
         />
       ))}
+      {nestedStructures.map((structure) => (
+        <StructureZone key={structure.id} structure={structure} nested />
+      ))}
+    </group>
+  )
+}
+
+function StructureZone({
+  structure,
+  nested = false,
+}: {
+  structure: StructureLayout
+  nested?: boolean
+}) {
+  const router = useRouter()
+
+  return (
+    <group position={structure.position}>
+      <mesh
+        position={[0, structure.height / 2, 0]}
+        onClick={structure.editHref ? (event) => {
+          event.stopPropagation()
+          const editHref = structure.editHref
+          if (editHref) {
+            router.push(editHref)
+          }
+        } : undefined}
+        onPointerEnter={structure.editHref ? (event) => {
+          event.stopPropagation()
+          document.body.style.cursor = 'pointer'
+        } : undefined}
+        onPointerLeave={structure.editHref ? () => {
+          document.body.style.cursor = 'auto'
+        } : undefined}
+      >
+        <boxGeometry args={[structure.width, structure.height, structure.depth]} />
+        <meshStandardMaterial
+          color={structure.color}
+          transparent
+          opacity={nested ? 0.72 : 0.84}
+          roughness={0.42}
+        />
+      </mesh>
+      <SpaceLabel
+        name={`${structure.kind === 'window' ? '창문' : '벽'} · ${structure.name}`}
+        position={[0, structure.height + 0.04, 0]}
+      />
     </group>
   )
 }
@@ -253,7 +372,7 @@ function NestedRoomZone({
   return (
     <group position={layout.position}>
       <mesh
-        position={[0, 0, 0]}
+        position={[0, layout.height / 2, 0]}
         onClick={(event) => {
           event.stopPropagation()
           router.push(`/app/space/${space.id}`)
@@ -266,8 +385,8 @@ function NestedRoomZone({
           document.body.style.cursor = 'auto'
         }}
       >
-        <boxGeometry args={[layout.width, 0.06, layout.depth]} />
-        <meshStandardMaterial color={layout.color} transparent opacity={0.55} roughness={0.45} />
+        <boxGeometry args={[layout.width, layout.height, layout.depth]} />
+        <meshStandardMaterial color={layout.color} transparent opacity={0.42} roughness={0.45} />
       </mesh>
       <RectangularGrid
         width={layout.width}
@@ -277,7 +396,7 @@ function NestedRoomZone({
         color={layout.color}
       />
       {space.isPanelVisible !== false && (
-        <SpaceLabel name={space.name} position={[0, 0.075, 0]} />
+        <SpaceLabel name={space.name} position={[0, layout.height + 0.08, 0]} />
       )}
     </group>
   )

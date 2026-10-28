@@ -32,6 +32,7 @@ export type SceneStructure = {
   layoutId: string
   kind: 'wall' | 'window'
   name: string
+  colorHex?: string
   xCm: number
   yCm: number
   zCm: number
@@ -186,7 +187,7 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
           .in('layout_id', layoutIds),
         supabase
           .from('scene_structures')
-          .select('id, layout_id, kind, name, x_cm, y_cm, z_cm, width_cm, height_cm, depth_cm')
+          .select('id, layout_id, kind, name, x_cm, y_cm, z_cm, width_cm, height_cm, depth_cm, color_hex')
           .in('layout_id', layoutIds),
       ])
     : [{ data: [], error: null }, { data: [], error: null }]
@@ -276,6 +277,7 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
       widthCm: Number(structure.width_cm),
       heightCm: Number(structure.height_cm),
       depthCm: Number(structure.depth_cm),
+      colorHex: structure.color_hex,
     })),
   }
 }
