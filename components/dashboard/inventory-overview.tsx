@@ -129,7 +129,6 @@ export function InventoryOverview({ displayName }: InventoryOverviewProps) {
         <section className="mt-4 grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
           <Home3dPreview
             spaces={spaces}
-            items={items}
             homeLayout={homeLayout}
             placements={placements}
           />
@@ -233,12 +232,10 @@ function QuickSearchResults({ items, hasItems, hasSearchCondition }: QuickSearch
 
 function Home3dPreview({
   spaces,
-  items,
   homeLayout,
   placements,
 }: {
   spaces: LocalSpace[]
-  items: LocalItem[]
   homeLayout: HomeLayout | null
   placements: SpacePlacement[]
 }) {
@@ -254,7 +251,6 @@ function Home3dPreview({
       {spaces.length > 0 ? (
         <SpaceOverview3d
           spaces={spaces}
-          items={items}
           homeLayout={homeLayout}
           placements={placements}
         />

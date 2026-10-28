@@ -24,6 +24,11 @@ export type ScenePlacementData = {
   depthCm: number
 }
 
+export type SceneSiblingPlacement = ScenePlacementData & {
+  name: string
+  kind?: 'space' | 'wall' | 'window'
+}
+
 export type SceneStructureData = {
   id: string
   kind: 'wall' | 'window'
@@ -39,6 +44,7 @@ export type SceneStructureData = {
 type ChildSpace = {
   id: string
   name: string
+  is_panel_visible?: boolean
 }
 
 type DirectItem = {
@@ -58,6 +64,8 @@ export function SpaceInterior3d({
   layoutId,
   placements,
   structures,
+  onStructureSelect,
+  selectedStructureId,
 }: {
   spaceName: string
   childSpaces: ChildSpace[]
@@ -66,6 +74,8 @@ export function SpaceInterior3d({
   layoutId: string | null
   placements: ScenePlacementData[]
   structures: SceneStructureData[]
+  onStructureSelect?: (structure: SceneStructureData) => void
+  selectedStructureId?: string | null
 }) {
   const sceneLayout = layout ?? {
     widthCm: 450,
@@ -79,8 +89,8 @@ export function SpaceInterior3d({
   const [editingSpace, setEditingSpace] = useState<ChildSpace | null>(null)
 
   return (
-    <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-inner">
-      <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700">
+    <section className="mt-6 overflow-hidden border border-slate-200 bg-white shadow-inner">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700">
         <span>{spaceName} 3D 구조</span>
         <span className="text-violet-600">모든 치수는 cm · 블록을 클릭해 들어가기</span>
       </div>
@@ -97,7 +107,12 @@ export function SpaceInterior3d({
           <SceneFloor layout={sceneLayout} />
           <AutoOuterWalls layout={sceneLayout} />
           {structures.map((structure) => (
-            <SceneStructureMesh key={structure.id} structure={structure} />
+            <SceneStructureMesh
+              key={structure.id}
+              structure={structure}
+              isSelected={selectedStructureId === structure.id}
+              onSelect={onStructureSelect ? () => onStructureSelect(structure) : undefined}
+            />
           ))}
           {childSpaces.map((child, index) => (
             <ChildSpaceBlock
@@ -132,7 +147,21 @@ export function SpaceInterior3d({
           </div>
         </div>
       )}
-      {editingSpace && <PlacementEditor space={editingSpace} layoutId={layoutId} placement={placements.find((entry) => entry.locationId === editingSpace.id) ?? null} bounds={sceneLayout} onClose={() => setEditingSpace(null)} />}
+      {editingSpace && (
+        <PlacementEditor
+          space={editingSpace}
+          layoutId={layoutId}
+          placement={placements.find((entry) => entry.locationId === editingSpace.id) ?? null}
+          bounds={sceneLayout}
+          siblingPlacements={childSpaces
+            .filter((child) => child.id !== editingSpace.id)
+            .flatMap((child) => {
+              const siblingPlacement = placements.find((entry) => entry.locationId === child.id)
+              return siblingPlacement ? [{ ...siblingPlacement, name: child.name }] : []
+            })}
+          onClose={() => setEditingSpace(null)}
+        />
+      )}
     </section>
   )
 }
@@ -180,7 +209,15 @@ function AutoOuterWalls({ layout }: { layout: SceneLayoutData }) {
   )
 }
 
-function SceneStructureMesh({ structure }: { structure: SceneStructureData }) {
+function SceneStructureMesh({
+  structure,
+  isSelected,
+  onSelect,
+}: {
+  structure: SceneStructureData
+  isSelected: boolean
+  onSelect?: () => void
+}) {
   const width = structure.widthCm * centimetresToScene
   const height = structure.heightCm * centimetresToScene
   const depth = structure.depthCm * centimetresToScene
@@ -197,10 +234,19 @@ function SceneStructureMesh({ structure }: { structure: SceneStructureData }) {
         (structure.zCm + structure.depthCm / 2) * centimetresToScene,
       ]}
     >
-      <mesh>
+      <mesh
+        onClick={onSelect}
+        onPointerEnter={onSelect ? (event) => {
+          event.stopPropagation()
+          document.body.style.cursor = 'pointer'
+        } : undefined}
+        onPointerLeave={onSelect ? () => {
+          document.body.style.cursor = 'auto'
+        } : undefined}
+      >
         <boxGeometry args={[width, height, depth]} />
-        <meshStandardMaterial color={color} transparent opacity={structure.kind === 'wall' ? 0.28 : 0.7} />
-        <Edges color="#e2e8f0" threshold={15} />
+        <meshStandardMaterial color={color} transparent opacity={isSelected ? 0.92 : structure.kind === 'wall' ? 0.28 : 0.7} />
+        <Edges color={isSelected ? '#7c3aed' : '#e2e8f0'} threshold={15} />
       </mesh>
       <Html position={[0, height / 2 + 0.08, 0]} center transform sprite distanceFactor={8}>
         <div className="rounded bg-slate-950/85 px-1.5 py-0.5 text-[10px] font-bold text-white">
@@ -245,18 +291,19 @@ function ChildSpaceBlock({
         <meshStandardMaterial color={color} transparent opacity={0.74} roughness={0.38} />
         <Edges color="#f5f3ff" threshold={15} />
       </mesh>
-      <Html
-        position={[0, heightCm * centimetresToScene / 2 + 0.1, 0]}
-        center
-        transform
-        sprite
-        distanceFactor={8}
-      >
-        <div className="min-w-20 rounded-lg border border-white/20 bg-slate-950/90 px-2 py-1.5 text-center text-xs font-extrabold text-white shadow-lg">
-          <p>{child.name}</p>
-          <p className="mt-0.5 text-[10px] text-violet-200">{widthCm} × {heightCm} × {depthCm} cm</p>
-        </div>
-      </Html>
+      {child.is_panel_visible !== false && (
+        <Html
+          position={[0, heightCm * centimetresToScene / 2 + 0.1, 0]}
+          center
+          transform
+          sprite
+          distanceFactor={8}
+        >
+          <div className="min-w-20 rounded-lg border border-white/20 bg-slate-950/90 px-2 py-1.5 text-center text-xs font-extrabold text-white shadow-lg">
+            {child.name}
+          </div>
+        </Html>
+      )}
     </group>
   )
 }
@@ -266,12 +313,14 @@ export function PlacementEditor({
   layoutId,
   placement,
   bounds,
+  siblingPlacements = [],
   onClose,
 }: {
   space: ChildSpace
   layoutId: string | null
   placement: ScenePlacementData | null
   bounds: SceneLayoutData | null
+  siblingPlacements?: SceneSiblingPlacement[]
   onClose: () => void
 }) {
   const [message, setMessage] = useState<string | null>(null)
@@ -285,6 +334,48 @@ export function PlacementEditor({
     depth: placement?.depthCm ?? 80,
   })
   const [isDuplex, setIsDuplex] = useState((placement?.yCm ?? 0) > 0)
+  const overlappingSibling = siblingPlacements.find((sibling) => rectanglesOverlap(
+    { x: draft.x, y: draft.y, width: draft.width, height: draft.depth },
+    { x: sibling.xCm, y: sibling.zCm, width: sibling.widthCm, height: sibling.depthCm },
+  ))
+  const availableXRanges = getAvailableCoordinateRanges({
+    axis: 'x',
+    draft,
+    bounds,
+    siblings: siblingPlacements,
+  })
+  const availableYRanges = getAvailableCoordinateRanges({
+    axis: 'y',
+    draft,
+    bounds,
+    siblings: siblingPlacements,
+  })
+  const wallDistances = bounds ? {
+    left: Math.max(0, draft.x),
+    right: Math.max(0, bounds.widthCm - (draft.x + draft.width)),
+    top: Math.max(0, draft.y),
+    bottom: Math.max(0, bounds.depthCm - (draft.y + draft.depth)),
+  } : null
+
+  async function removePlacement() {
+    if (!placement || !window.confirm(`“${space.name}”의 3D 자리만 지울까요?\n공간 이름과 안의 물건은 그대로 남습니다.`)) {
+      return
+    }
+
+    setMessage(null)
+    const { error } = await createClient()
+      .from('space_placements')
+      .delete()
+      .eq('id', placement.id)
+
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+
+    onClose()
+    router.refresh()
+  }
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -305,6 +396,11 @@ export function PlacementEditor({
       (isDuplex && draft.z + draft.height > bounds.heightCm)
     )) {
       setMessage('이 공간 안에 들어오도록 위치와 크기를 조정해 주세요.')
+      return
+    }
+
+    if (overlappingSibling) {
+      setMessage(`“${overlappingSibling.name}”과 겹칩니다. 격자에서 비어 있는 곳을 선택해 주세요.`)
       return
     }
 
@@ -345,8 +441,14 @@ export function PlacementEditor({
           <h3 className="font-extrabold">{space.name} 3D 자리 정하기</h3>
           <button type="button" onClick={onClose} className="text-sm font-bold text-slate-500">닫기</button>
         </div>
-        <DragPlacementCanvas draft={draft} bounds={bounds} onChange={setDraft} />
-        <p className="mt-3 text-xs font-bold text-slate-600">드래그 결과 · 아래에서 1cm 단위 정밀 조정</p>
+        <DragPlacementCanvas draft={draft} bounds={bounds} siblings={siblingPlacements} isOverlapping={Boolean(overlappingSibling)} onChange={setDraft} />
+        <p className="mt-3 text-xs font-bold text-slate-600">회색은 이미 배치된 공간이고, 연한 빨강은 현재 크기로 시작하면 겹치는 영역입니다.</p>
+        <div className="mt-2 grid gap-1 border-l-2 border-violet-300 bg-violet-50 px-2 py-2 text-xs leading-5 text-violet-950">
+          <p><strong>현재 Y에서 가능한 X:</strong> {formatCoordinateRanges(availableXRanges)}</p>
+          <p><strong>현재 X에서 가능한 Y:</strong> {formatCoordinateRanges(availableYRanges)}</p>
+          {wallDistances && <p><strong>현재 배치에서 벽까지:</strong> 왼쪽 {wallDistances.left}cm · 오른쪽 {wallDistances.right}cm · 위 {wallDistances.top}cm · 아래 {wallDistances.bottom}cm</p>}
+        </div>
+        <p className="mt-2 text-xs font-bold text-slate-600">드래그 결과는 아래에서 1cm 단위 정밀 조정</p>
         <div className="mt-2 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             {fields.slice(0, 2).map(([key, label, max]) => (
@@ -369,8 +471,22 @@ export function PlacementEditor({
             <NumberInput label={`공간 좌표 Z · 최대 ${bounds ? Math.max(0, bounds.heightCm - draft.height) : '?'}cm`} min={0} max={bounds ? Math.max(0, bounds.heightCm - draft.height) : undefined} value={draft.z} onChange={(z) => setDraft({ ...draft, z })} />
           </div>
         )}
+        {overlappingSibling && <p className="mt-2 text-xs font-bold text-rose-700">현재 위치는 “{overlappingSibling.name}”과 겹칩니다.</p>}
         {message && <p className="mt-2 text-xs font-bold text-rose-700">{message}</p>}
-        <button className="mt-4 w-full rounded-xl bg-violet-600 py-2 text-sm font-extrabold text-white">자리 저장</button>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {placement && (
+            <button
+              type="button"
+              onClick={() => void removePlacement()}
+              className="rounded-xl border border-rose-200 bg-white py-2 text-sm font-extrabold text-rose-700 transition hover:bg-rose-50"
+            >
+              3D 자리만 지우기
+            </button>
+          )}
+          <button className="rounded-xl bg-violet-600 py-2 text-sm font-extrabold text-white">
+            자리 저장
+          </button>
+        </div>
       </form>
     </div>
   )
@@ -380,7 +496,7 @@ function NumberInput({ label, min, max, value, onChange }: { label: string; min:
   return <label className="text-xs font-bold">{label}<input type="number" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5" /></label>
 }
 
-function DragPlacementCanvas({ draft, bounds, onChange }: { draft: { x: number; y: number; z: number; width: number; height: number; depth: number }; bounds: SceneLayoutData | null; onChange: (draft: { x: number; y: number; z: number; width: number; height: number; depth: number }) => void }) {
+function DragPlacementCanvas({ draft, bounds, siblings, isOverlapping, onChange }: { draft: { x: number; y: number; z: number; width: number; height: number; depth: number }; bounds: SceneLayoutData | null; siblings: SceneSiblingPlacement[]; isOverlapping: boolean; onChange: (draft: { x: number; y: number; z: number; width: number; height: number; depth: number }) => void }) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const startRef = useRef<{ x: number; y: number } | null>(null)
   const widthCm = bounds?.widthCm ?? 600
@@ -388,5 +504,126 @@ function DragPlacementCanvas({ draft, bounds, onChange }: { draft: { x: number; 
   function point(event: PointerEvent<HTMLDivElement>) { const rect = canvasRef.current!.getBoundingClientRect(); return { x: Math.max(0, Math.round((event.clientX - rect.left) / rect.width * widthCm)), y: Math.max(0, Math.round((event.clientY - rect.top) / rect.height * depthCm)) } }
   function start(event: PointerEvent<HTMLDivElement>) { event.currentTarget.setPointerCapture(event.pointerId); startRef.current = point(event) }
   function end(event: PointerEvent<HTMLDivElement>) { if (!startRef.current) return; const next = point(event); const x = Math.min(startRef.current.x, next.x); const y = Math.min(startRef.current.y, next.y); onChange({ ...draft, x, y, width: Math.max(1, Math.abs(next.x - startRef.current.x)), depth: Math.max(1, Math.abs(next.y - startRef.current.y)) }); startRef.current = null }
-  return <div ref={canvasRef} onPointerDown={start} onPointerUp={end} style={{ aspectRatio: `${widthCm} / ${depthCm}` }} className="mt-4 w-full cursor-crosshair rounded-xl border-2 border-violet-200 bg-[linear-gradient(#ede9fe_1px,transparent_1px),linear-gradient(90deg,#ede9fe_1px,transparent_1px)] [background-size:10px_10px]"><div style={{ left: `${draft.x / widthCm * 100}%`, top: `${draft.y / depthCm * 100}%`, width: `${draft.width / widthCm * 100}%`, height: `${draft.depth / depthCm * 100}%` }} className="pointer-events-none relative border-2 border-violet-600 bg-violet-500/30" /></div>
+  return (
+    <div ref={canvasRef} onPointerDown={start} onPointerUp={end} style={{ aspectRatio: `${widthCm} / ${depthCm}` }} className="relative mt-4 w-full cursor-crosshair overflow-hidden border-2 border-violet-200 bg-[linear-gradient(#ede9fe_1px,transparent_1px),linear-gradient(90deg,#ede9fe_1px,transparent_1px)] [background-size:10px_10px]">
+      {siblings.map((sibling) => {
+        const blockedLeft = Math.max(0, sibling.xCm - draft.width)
+        const blockedTop = Math.max(0, sibling.zCm - draft.depth)
+        const blockedRight = Math.min(widthCm, sibling.xCm + sibling.widthCm)
+        const blockedBottom = Math.min(depthCm, sibling.zCm + sibling.depthCm)
+
+        return (
+          <div
+            key={`${sibling.id}-blocked`}
+            style={{
+              left: `${blockedLeft / widthCm * 100}%`,
+              top: `${blockedTop / depthCm * 100}%`,
+              width: `${Math.max(0, blockedRight - blockedLeft) / widthCm * 100}%`,
+              height: `${Math.max(0, blockedBottom - blockedTop) / depthCm * 100}%`,
+            }}
+            className="pointer-events-none absolute border border-rose-300/70 bg-rose-300/20"
+          />
+        )
+      })}
+      {siblings.map((sibling) => (
+        <div
+          key={sibling.id}
+          style={{
+            left: `${sibling.xCm / widthCm * 100}%`,
+            top: `${sibling.zCm / depthCm * 100}%`,
+            width: `${sibling.widthCm / widthCm * 100}%`,
+            height: `${sibling.depthCm / depthCm * 100}%`,
+          }}
+          className={`pointer-events-none absolute grid place-items-center border-2 px-1 text-center text-[10px] font-extrabold ${sibling.kind === 'window' ? 'border-sky-600 bg-sky-300/50 text-sky-950' : sibling.kind === 'wall' ? 'border-stone-500 bg-stone-300/45 text-stone-800' : 'border-slate-500 bg-slate-400/35 text-slate-700'}`}
+        >
+          <span className="max-w-full truncate">{sibling.name}</span>
+        </div>
+      ))}
+      <div style={{ left: `${draft.x / widthCm * 100}%`, top: `${draft.y / depthCm * 100}%`, width: `${draft.width / widthCm * 100}%`, height: `${draft.depth / depthCm * 100}%` }} className={`pointer-events-none absolute border-2 ${isOverlapping ? 'border-rose-600 bg-rose-500/30' : 'border-violet-600 bg-violet-500/30'}`} />
+    </div>
+  )
+}
+
+function rectanglesOverlap(
+  first: { x: number; y: number; width: number; height: number },
+  second: { x: number; y: number; width: number; height: number },
+) {
+  return first.x < second.x + second.width &&
+    first.x + first.width > second.x &&
+    first.y < second.y + second.height &&
+    first.y + first.height > second.y
+}
+
+type DraftRectangle = {
+  x: number
+  y: number
+  width: number
+  height: number
+  depth: number
+}
+
+function getAvailableCoordinateRanges({
+  axis,
+  draft,
+  bounds,
+  siblings,
+}: {
+  axis: 'x' | 'y'
+  draft: DraftRectangle
+  bounds: SceneLayoutData | null
+  siblings: SceneSiblingPlacement[]
+}) {
+  if (!bounds) {
+    return []
+  }
+
+  const maximum = axis === 'x'
+    ? Math.max(0, bounds.widthCm - draft.width)
+    : Math.max(0, bounds.depthCm - draft.depth)
+  let ranges: Array<[number, number]> = [[0, maximum]]
+
+  for (const sibling of siblings) {
+    const intersectsOtherAxis = axis === 'x'
+      ? draft.y < sibling.zCm + sibling.depthCm && draft.y + draft.depth > sibling.zCm
+      : draft.x < sibling.xCm + sibling.widthCm && draft.x + draft.width > sibling.xCm
+
+    if (!intersectsOtherAxis) {
+      continue
+    }
+
+    const blockedStart = axis === 'x'
+      ? sibling.xCm - draft.width + 1
+      : sibling.zCm - draft.depth + 1
+    const blockedEnd = axis === 'x'
+      ? sibling.xCm + sibling.widthCm - 1
+      : sibling.zCm + sibling.depthCm - 1
+    ranges = subtractBlockedRange(ranges, blockedStart, blockedEnd)
+  }
+
+  return ranges
+}
+
+function subtractBlockedRange(ranges: Array<[number, number]>, blockedStart: number, blockedEnd: number) {
+  return ranges.flatMap(([start, end]) => {
+    if (blockedEnd < start || blockedStart > end) {
+      return [[start, end] as [number, number]]
+    }
+
+    const nextRanges: Array<[number, number]> = []
+    if (blockedStart > start) {
+      nextRanges.push([start, blockedStart - 1])
+    }
+    if (blockedEnd < end) {
+      nextRanges.push([blockedEnd + 1, end])
+    }
+    return nextRanges
+  })
+}
+
+function formatCoordinateRanges(ranges: Array<[number, number]>) {
+  if (ranges.length === 0) {
+    return '없음'
+  }
+
+  return ranges.map(([start, end]) => start === end ? `${start}cm` : `${start}–${end}cm`).join(' · ')
 }

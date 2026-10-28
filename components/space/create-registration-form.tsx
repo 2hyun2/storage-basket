@@ -9,15 +9,16 @@ import {
   MapPinned,
   Package,
 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 
 type RegistrationTarget = 'space' | 'item'
 
 export function CreateRegistrationForm() {
+  const searchParams = useSearchParams()
   const [target, setTarget] = useState<RegistrationTarget>('space')
-  const [selectedParentId, setSelectedParentId] = useState<string | null>(null)
+  const [selectedParentId, setSelectedParentId] = useState<string | null>(() => searchParams.get('inside'))
   const [message, setMessage] = useState<string | null>(null)
   const { homeId, homeLayout, spaces, refresh, isLoading } = useSupabaseInventory()
   const router = useRouter()

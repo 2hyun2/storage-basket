@@ -1,16 +1,23 @@
 'use client'
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { PanelTop, Pencil, Plus, RectangleHorizontal } from 'lucide-react'
+import { PanelTop, Pencil, Plus, RectangleHorizontal, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { SpaceInterior3d, type SceneLayoutData, type SceneStructureData } from '@/components/space/space-interior-3d'
 import { createClient } from '@/lib/supabase/client'
 
 type StructureKind = 'wall' | 'window'
 type StructureRecord = SceneStructureData
-type StructureDraft = { name: string; planX: number; planY: number; sizeX: number; sizeY: number }
+type NumericInput = number | ''
+type StructureDraft = {
+  name: string
+  planX: NumericInput
+  planY: NumericInput
+  sizeX: NumericInput
+  sizeY: NumericInput
+}
 
-const emptyDraft: StructureDraft = { name: '', planX: 0, planY: 0, sizeX: 90, sizeY: 10 }
+const emptyDraft: StructureDraft = { name: '', planX: '', planY: '', sizeX: '', sizeY: '' }
 
 export function StructureCreateForm({ locationId, locationName }: { locationId: string; locationName: string }) {
   const [kind, setKind] = useState<StructureKind>('wall')
@@ -70,7 +77,7 @@ export function StructureCreateForm({ locationId, locationName }: { locationId: 
   function startNew(nextKind: StructureKind = kind) {
     setKind(nextKind)
     setEditingId(null)
-    setDraft({ ...emptyDraft, sizeX: nextKind === 'wall' ? 90 : 80 })
+    setDraft(emptyDraft)
     setMessage(null)
   }
 
@@ -96,14 +103,18 @@ export function StructureCreateForm({ locationId, locationName }: { locationId: 
     }
 
     const values = [draft.planX, draft.planY, draft.sizeX, draft.sizeY]
-    if (values.some((value) => !Number.isInteger(value)) || draft.planX < 0 || draft.planY < 0 || draft.sizeX < 1 || draft.sizeY < 1) {
+    if (values.some((value) => value === '' || !Number.isInteger(value))) {
       setMessage('좌표와 크기는 정수 cm로 입력해 주세요. 크기는 1cm 이상이어야 합니다.')
       return
     }
 
-    const maxX = bounds.widthCm - draft.sizeX
-    const maxY = bounds.depthCm - draft.sizeY
-    if (draft.sizeX > bounds.widthCm || draft.sizeY > bounds.depthCm || draft.planX > maxX || draft.planY > maxY) {
+    const planX = numericValue(draft.planX)
+    const planY = numericValue(draft.planY)
+    const sizeX = numericValue(draft.sizeX)
+    const sizeY = numericValue(draft.sizeY)
+    const maxX = bounds.widthCm - sizeX
+    const maxY = bounds.depthCm - sizeY
+    if (planX < 0 || planY < 0 || sizeX < 1 || sizeY < 1 || sizeX > bounds.widthCm || sizeY > bounds.depthCm || planX > maxX || planY > maxY) {
       setMessage(`이 공간 안에 들어오도록 정해 주세요. 현재 시작할 수 있는 최대값은 X ${Math.max(0, maxX)}cm · Y ${Math.max(0, maxY)}cm입니다.`)
       return
     }
@@ -113,12 +124,12 @@ export function StructureCreateForm({ locationId, locationName }: { locationId: 
       layout_id: layoutId,
       kind,
       name,
-      x_cm: draft.planX,
+      x_cm: planX,
       y_cm: 0,
-      z_cm: draft.planY,
-      width_cm: draft.sizeX,
+      z_cm: planY,
+      width_cm: sizeX,
       height_cm: kind === 'window' ? 110 : bounds.heightCm,
-      depth_cm: draft.sizeY,
+      depth_cm: sizeY,
     }
     const supabase = createClient()
     const query = editingId
@@ -135,19 +146,70 @@ export function StructureCreateForm({ locationId, locationName }: { locationId: 
     router.refresh()
   }
 
+  async function deleteStructure() {
+    if (!editingId || !window.confirm(`“${draft.name || '이 구조물'}”을 삭제할까요?`)) {
+      return
+    }
+
+    setMessage(null)
+    const { error } = await createClient()
+      .from('scene_structures')
+      .delete()
+      .eq('id', editingId)
+
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+
+    await loadScene()
+    startNew(kind)
+    router.refresh()
+  }
+
+  const sizeX = numericValue(draft.sizeX)
+  const sizeY = numericValue(draft.sizeY)
   const maxSizeX = bounds ? bounds.widthCm : null
   const maxSizeY = bounds ? bounds.depthCm : null
-  const maxStartX = bounds ? Math.max(0, bounds.widthCm - draft.sizeX) : null
-  const maxStartY = bounds ? Math.max(0, bounds.depthCm - draft.sizeY) : null
+  const maxStartX = bounds ? Math.max(0, bounds.widthCm - sizeX) : null
+  const maxStartY = bounds ? Math.max(0, bounds.depthCm - sizeY) : null
+  const previewStructure = bounds && hasCompleteDraft(draft) ? createPreviewStructure({
+    id: editingId ?? 'new-structure-preview',
+    kind,
+    draft,
+    heightCm: bounds.heightCm,
+    existingCount: structures.filter((structure) => structure.kind === kind).length,
+  }) : null
+  const previewStructures = previewStructure
+    ? editingId
+      ? structures.map((structure) => structure.id === editingId ? previewStructure : structure)
+      : [...structures, previewStructure]
+    : structures
+
+  function selectStructureFromScene(structure: StructureRecord) {
+    if (structures.some((savedStructure) => savedStructure.id === structure.id)) {
+      startEdit(structure)
+    }
+  }
 
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-violet-100 bg-violet-50/60 p-3">
         <p className="text-sm font-extrabold text-violet-950">이 공간 미리 보기</p>
-        <p className="mt-1 text-xs leading-5 text-slate-600">아래 3D 화면을 보면서 벽과 창문 위치를 정할 수 있습니다.</p>
+        <p className="mt-1 text-xs leading-5 text-slate-600">입력값을 바꾸면 저장 전 위치와 크기가 바로 반영됩니다. 이미 만든 벽·창문은 3D에서 눌러 고칠 수 있습니다.</p>
       </div>
 
-      <SpaceInterior3d spaceName={locationName} childSpaces={[]} items={[]} layout={bounds} layoutId={null} placements={[]} structures={structures} />
+      <SpaceInterior3d
+        spaceName={locationName}
+        childSpaces={[]}
+        items={[]}
+        layout={bounds}
+        layoutId={null}
+        placements={[]}
+        structures={previewStructures}
+        selectedStructureId={editingId ?? previewStructure?.id ?? null}
+        onStructureSelect={selectStructureFromScene}
+      />
 
       {structures.length > 0 && (
         <section className="rounded-2xl border border-slate-200 bg-white p-3">
@@ -200,9 +262,21 @@ export function StructureCreateForm({ locationId, locationName }: { locationId: 
         </div>
 
         {message && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm font-bold text-rose-700">{message}</p>}
-        <button className="w-full rounded-2xl bg-violet-600 px-4 py-2.5 text-sm font-extrabold text-white disabled:bg-violet-300" disabled={!layoutId}>
-          {editingId ? `${kind === 'wall' ? '벽' : '창문'} 수정 저장` : `${kind === 'wall' ? '벽' : '창문'} 저장`}
-        </button>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {editingId && (
+            <button
+              type="button"
+              onClick={() => void deleteStructure()}
+              className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-extrabold text-rose-700 transition hover:bg-rose-50"
+            >
+              <Trash2 size={16} />
+              삭제
+            </button>
+          )}
+          <button className="rounded-2xl bg-violet-600 px-4 py-2.5 text-sm font-extrabold text-white disabled:bg-violet-300" disabled={!layoutId}>
+            {editingId ? `${kind === 'wall' ? '벽' : '창문'} 수정 저장` : `${kind === 'wall' ? '벽' : '창문'} 저장`}
+          </button>
+        </div>
       </form>
     </div>
   )
@@ -216,10 +290,44 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
   return <label className="block"><span className="mb-1.5 block text-sm font-bold text-slate-700">{label}</span><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" /></label>
 }
 
-function NumberField({ label, value, min, max, onChange }: { label: string; value: number; min: number; max?: number; onChange: (value: number) => void }) {
-  return <label className="block"><span className="mb-1.5 block text-xs font-bold text-slate-700">{label}</span><input type="number" value={value} min={min} max={max} onChange={(event) => onChange(Number(event.target.value))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" /></label>
+function NumberField({ label, value, min, max, onChange }: { label: string; value: NumericInput; min: number; max?: number; onChange: (value: NumericInput) => void }) {
+  return <label className="block"><span className="mb-1.5 block text-xs font-bold text-slate-700">{label}</span><input type="number" value={value} min={min} max={max} onChange={(event) => onChange(event.target.value === '' ? '' : Number(event.target.value))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" /></label>
 }
 
 function defaultName(kind: StructureKind, number: number) {
   return `${kind === 'wall' ? '벽' : '창문'} ${number}`
+}
+
+function createPreviewStructure({
+  id,
+  kind,
+  draft,
+  heightCm,
+  existingCount,
+}: {
+  id: string
+  kind: StructureKind
+  draft: StructureDraft
+  heightCm: number
+  existingCount: number
+}): StructureRecord {
+  return {
+    id,
+    kind,
+    name: draft.name.trim() || `${defaultName(kind, existingCount + 1)} 미리보기`,
+    xCm: numericValue(draft.planX),
+    yCm: 0,
+    zCm: numericValue(draft.planY),
+    widthCm: numericValue(draft.sizeX),
+    heightCm: kind === 'window' ? Math.min(110, heightCm) : heightCm,
+    depthCm: numericValue(draft.sizeY),
+  }
+}
+
+function numericValue(value: NumericInput) {
+  return value === '' ? 0 : value
+}
+
+function hasCompleteDraft(draft: StructureDraft) {
+  return [draft.planX, draft.planY, draft.sizeX, draft.sizeY].every((value) => value !== '')
 }

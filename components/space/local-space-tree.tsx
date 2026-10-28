@@ -122,7 +122,6 @@ export function LocalSpaceTree() {
       ) : (
         <SpaceOverview3d
           spaces={spaces}
-          items={items}
           homeLayout={homeLayout}
           placements={placements}
         />

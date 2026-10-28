@@ -5,13 +5,11 @@ import { Canvas } from '@react-three/fiber'
 import { useRouter } from 'next/navigation'
 import { BufferGeometry, Float32BufferAttribute } from 'three'
 import { useMemo } from 'react'
-import type { LocalItem } from '@/lib/space/local-items'
 import type { LocalSpace } from '@/lib/space/local-spaces'
 import type { HomeLayout, SpacePlacement } from '@/lib/space/use-supabase-inventory'
 
 type SpaceOverview3dProps = {
   spaces: LocalSpace[]
-  items: LocalItem[]
   homeLayout: HomeLayout | null
   placements: SpacePlacement[]
 }
@@ -27,7 +25,6 @@ const roomColors = ['#8b5cf6', '#0ea5e9', '#ec4899', '#f59e0b', '#14b8a6']
 
 export function SpaceOverview3d({
   spaces,
-  items,
   homeLayout,
   placements,
 }: SpaceOverview3dProps) {
@@ -40,7 +37,7 @@ export function SpaceOverview3d({
   const unplacedRootSpaces = rootSpaces.filter((space) => !placements.some((placement) => placement.locationId === space.id))
 
   return (
-    <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-inner">
+    <div className="mt-4 overflow-hidden border border-slate-200 bg-white shadow-inner">
       <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700">
         <span>3D 집 구조</span>
         <span className="text-violet-600">방 바닥을 클릭해 내부로 이동</span>
@@ -55,16 +52,12 @@ export function SpaceOverview3d({
           {placedRootSpaces.map((space, index) => {
             const layout = getRoomLayout(space.id, index, homeLayout, placements)
             if (!layout) return null
-            const children = spaces.filter((child) => child.parentId === space.id)
-            const directItems = items.filter((item) => item.locationId === space.id)
 
             return (
               <RoomZone
                 key={space.id}
                 space={space}
                 layout={layout}
-                childNames={children.slice(0, 2).map((child) => child.name)}
-                itemCount={directItems.length}
               />
             )
           })}
@@ -163,13 +156,9 @@ function Wall({
 function RoomZone({
   space,
   layout,
-  childNames,
-  itemCount,
 }: {
   space: LocalSpace
   layout: RoomLayout
-  childNames: string[]
-  itemCount: number
 }) {
   const router = useRouter()
 
@@ -186,7 +175,7 @@ function RoomZone({
           document.body.style.cursor = 'auto'
         }}
       >
-        <boxGeometry args={[layout.width - 0.14, 0.04, layout.depth - 0.14]} />
+        <boxGeometry args={[layout.width, 0.04, layout.depth]} />
         <meshStandardMaterial color={layout.color} transparent opacity={0.24} roughness={0.5} />
       </mesh>
       <Wall
@@ -212,17 +201,13 @@ function RoomZone({
         color={layout.color}
       />
 
-      <Html position={[0, 0.15, 0]} center transform sprite distanceFactor={8}>
-        <div className="min-w-28 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-center text-slate-800 shadow-lg backdrop-blur">
-          <p className="text-xs font-extrabold">{space.name}</p>
-          <p className="mt-1 text-[10px] text-slate-500">수납공간 {childNames.length} · 물건 {itemCount}</p>
-          {childNames.length > 0 && (
-            <p className="mt-1 max-w-28 truncate text-[10px] text-violet-600">
-              {childNames.join(' · ')}
-            </p>
-          )}
-        </div>
-      </Html>
+      {space.isPanelVisible !== false && (
+        <Html position={[0, 0.15, 0]} center transform sprite distanceFactor={8}>
+          <div className="min-w-20 rounded-lg border border-white/20 bg-slate-950/90 px-2 py-1.5 text-center text-xs font-extrabold text-white shadow-lg">
+            {space.name}
+          </div>
+        </Html>
+      )}
     </group>
   )
 }

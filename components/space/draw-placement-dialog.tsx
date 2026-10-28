@@ -1,9 +1,9 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { PlacementEditor, type ScenePlacementData } from '@/components/space/space-interior-3d'
+import { PlacementEditor, type ScenePlacementData, type SceneSiblingPlacement } from '@/components/space/space-interior-3d'
 
-export function DrawPlacementDialog({ locationId, name, layoutId, placement, bounds }: { locationId: string; name: string; layoutId: string | null; placement: ScenePlacementData | null; bounds: { widthCm: number; heightCm: number; depthCm: number } | null }) {
+export function DrawPlacementDialog({ locationId, name, layoutId, placement, bounds, siblingPlacements }: { locationId: string; name: string; layoutId: string | null; placement: ScenePlacementData | null; bounds: { widthCm: number; heightCm: number; depthCm: number } | null; siblingPlacements: SceneSiblingPlacement[] }) {
   const router = useRouter()
 
   if (!bounds || !layoutId) {
@@ -20,5 +20,5 @@ export function DrawPlacementDialog({ locationId, name, layoutId, placement, bou
     )
   }
 
-  return <div className="relative h-[460px]"><PlacementEditor space={{ id: locationId, name }} layoutId={layoutId} placement={placement} bounds={bounds} onClose={() => router.replace(`/app/space/${locationId}`)} /></div>
+  return <div className="relative h-[460px]"><PlacementEditor space={{ id: locationId, name }} layoutId={layoutId} placement={placement} bounds={bounds} siblingPlacements={siblingPlacements} onClose={() => router.replace(`/app/space/${locationId}`)} /></div>
 }

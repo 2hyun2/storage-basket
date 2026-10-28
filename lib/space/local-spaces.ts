@@ -24,6 +24,7 @@ export type LocalSpace = {
   mode: SpaceRegistrationMode
   placement: SpacePlacement | null
   createdAt: string
+  isPanelVisible?: boolean
 }
 
 export function readLocalSpaces(): LocalSpace[] {

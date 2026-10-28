@@ -105,6 +105,7 @@ export function useSupabaseInventory() {
       mode: 'simple',
       placement: null,
       createdAt: location.created_at,
+      isPanelVisible: location.is_panel_visible,
     })))
     setItems((itemsResult.data ?? []).map((item) => ({
       id: item.id,
