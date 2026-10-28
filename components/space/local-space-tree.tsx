@@ -19,8 +19,7 @@ import type { LocalItem } from '@/lib/space/local-items'
 import { useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import { SpaceOverview3d } from '@/components/space/space-overview-3d'
 import type { LocalSpace } from '@/lib/space/local-spaces'
-
-type SpaceView = 'tree' | 'three'
+import { useSpaceViewStore } from '@/lib/ui/space-view-store'
 
 type LocalSpaceTreeNodeProps = {
   space: LocalSpace
@@ -33,7 +32,8 @@ type LocalSpaceTreeNodeProps = {
 export function LocalSpaceTree() {
   const { spaces, items, homeLayout, layouts, placements, isLoading } = useSupabaseInventory()
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null)
-  const [view, setView] = useState<SpaceView>('tree')
+  const view = useSpaceViewStore((state) => state.view)
+  const setView = useSpaceViewStore((state) => state.setView)
 
   const spacesById = useMemo(
     () => new Map(spaces.map((space) => [space.id, space])),

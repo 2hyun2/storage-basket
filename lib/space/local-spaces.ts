@@ -25,6 +25,7 @@ export type LocalSpace = {
   placement: SpacePlacement | null
   createdAt: string
   isPanelVisible?: boolean
+  colorHex?: string
 }
 
 export function readLocalSpaces(): LocalSpace[] {

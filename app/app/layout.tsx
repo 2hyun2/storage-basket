@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { AppHeader } from '@/components/app-header'
+import { AppFooter } from '@/components/app-footer'
 import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     <div className="min-h-dvh bg-[#f8f7ff]">
       <AppHeader displayName={displayName} email={email} />
       {children}
+      <AppFooter />
     </div>
   )
 }

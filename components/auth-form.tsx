@@ -11,6 +11,7 @@ import {
   type Ref,
 } from 'react'
 import { login, signup, type AuthState } from '@/app/(auth)/actions'
+import { createClient } from '@/lib/supabase/client'
 
 const initialState: AuthState = {}
 const LAST_LOGIN_EMAIL_KEY = 'storage-basket:last-login-email:v1'
@@ -18,6 +19,11 @@ const LAST_LOGIN_EMAIL_KEY = 'storage-basket:last-login-email:v1'
 type AuthFormProps = {
   mode: 'login' | 'signup'
   nextPath?: string
+}
+
+type InvitePreview = {
+  home_name: string
+  owner_name: string
 }
 
 export function AuthForm({ mode, nextPath }: AuthFormProps) {
@@ -31,6 +37,10 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
   )
   const [editedEmail, setEditedEmail] = useState<string | null>(null)
   const [rememberEmailChoice, setRememberEmailChoice] = useState<boolean | null>(null)
+  const [inviteCode, setInviteCode] = useState('')
+  const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null)
+  const [inviteMessage, setInviteMessage] = useState<string | null>(null)
+  const [isCheckingInvite, setIsCheckingInvite] = useState(false)
   const passwordInputRef = useRef<HTMLInputElement>(null)
   const email = editedEmail ?? (isLogin ? storedEmail : '')
   const rememberEmail = rememberEmailChoice ?? Boolean(storedEmail)
@@ -62,16 +72,74 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
     formAction(formData)
   }
 
+  async function checkInviteCode() {
+    const normalizedCode = inviteCode.trim().toUpperCase()
+    if (!normalizedCode) {
+      setInvitePreview(null)
+      setInviteMessage('초대 코드를 입력해 주세요.')
+      return
+    }
+
+    setIsCheckingInvite(true)
+    setInviteMessage(null)
+    const { data, error } = await createClient()
+      .rpc('preview_home_invite', { invite_code_input: normalizedCode })
+      .maybeSingle<InvitePreview>()
+
+    setIsCheckingInvite(false)
+    if (error || !data) {
+      setInvitePreview(null)
+      setInviteMessage('코드를 찾지 못했습니다. 공동체 대표에게 다시 확인해 주세요.')
+      return
+    }
+
+    setInviteCode(normalizedCode)
+    setInvitePreview(data)
+  }
+
   return (
     <form action={handleSubmit} className="mt-4 space-y-3">
       <input type="hidden" name="next" value={nextPath ?? ''} />
       {!isLogin && (
-        <Field
-          label="이름"
-          name="displayName"
-          placeholder="표시할 이름"
-          autoComplete="name"
-        />
+        <>
+          <Field
+            label="이름"
+            name="displayName"
+            placeholder="표시할 이름"
+            autoComplete="name"
+          />
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-bold text-slate-700">초대 코드가 있으신가요?</span>
+              <span className="block text-xs leading-5 text-slate-500">코드를 확인하면 새 개인 공간 대신 기존 공동체에 바로 참여합니다.</span>
+              <span className="mt-2 flex gap-2">
+                <input
+                  name="inviteCode"
+                  value={inviteCode}
+                  onChange={(event) => {
+                    setInviteCode(event.target.value.toUpperCase())
+                    setInvitePreview(null)
+                    setInviteMessage(null)
+                  }}
+                  placeholder="예: A1B2C3D4"
+                  autoComplete="off"
+                  className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold tracking-[0.12em] outline-none focus:border-violet-500"
+                />
+                <button type="button" onClick={() => void checkInviteCode()} disabled={isCheckingInvite} className="shrink-0 rounded-xl border border-violet-200 bg-white px-3 text-sm font-extrabold text-violet-700 hover:bg-violet-50 disabled:opacity-60">
+                  {isCheckingInvite ? '확인 중' : '코드 확인'}
+                </button>
+              </span>
+            </label>
+            {invitePreview && (
+              <div className="mt-3 rounded-xl bg-violet-100 px-3 py-2 text-sm text-violet-950">
+                <strong>{invitePreview.home_name}</strong>
+                <span className="ml-1">· 대표 {invitePreview.owner_name}</span>
+                <p className="mt-1 text-xs text-violet-700">이 공동체에 참여한 뒤 공간과 물건을 함께 볼 수 있어요.</p>
+              </div>
+            )}
+            {inviteMessage && <p className="mt-2 text-xs font-bold text-rose-700">{inviteMessage}</p>}
+          </div>
+        </>
       )}
       <Field
         label="이메일"

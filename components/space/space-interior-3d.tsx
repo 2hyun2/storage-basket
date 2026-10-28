@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useRef, useState, type FormEvent, type PointerEvent } from 'react'
 import { RectangularGrid } from '@/components/space/space-overview-3d'
+import { getDefaultSpaceColor } from '@/lib/space/colors'
 import { invalidateHomeInventory, useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
 
@@ -47,12 +48,14 @@ type ChildSpace = {
   id: string
   name: string
   is_panel_visible?: boolean
+  colorHex?: string
 }
 
 export type SceneNestedChild = ScenePlacementData & {
   parentId: string
   name: string
   isPanelVisible: boolean
+  colorHex?: string
 }
 
 type DirectItem = {
@@ -63,7 +66,6 @@ type DirectItem = {
 
 const centimetresToScene = 0.01
 const defaultSceneHeightCm = 100
-const blockColors = ['#8b5cf6', '#0ea5e9', '#ec4899', '#f59e0b']
 
 function toSceneCenter({
   xCm,
@@ -296,7 +298,7 @@ function ChildSpaceBlock({
   const xCm = placement.xCm
   const yCm = placement.yCm
   const zCm = placement.zCm
-  const color = blockColors[index % blockColors.length]
+  const color = child.colorHex ?? getDefaultSpaceColor(index)
 
   return (
     <group position={toSceneCenter({
@@ -323,7 +325,7 @@ function ChildSpaceBlock({
           parentWidthCm={widthCm}
           parentHeightCm={heightCm}
           parentDepthCm={depthCm}
-          color={blockColors[(index + nestedIndex + 1) % blockColors.length]}
+          color={nestedChild.colorHex ?? getDefaultSpaceColor(index + nestedIndex + 1)}
           onEnter={() => onEnterNested(nestedChild.locationId)}
         />
       ))}

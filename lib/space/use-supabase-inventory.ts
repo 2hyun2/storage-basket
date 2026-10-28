@@ -50,8 +50,24 @@ export type SceneLayout = {
   depthCm: number
 }
 
+export type ActiveHome = {
+  id: string
+  name: string
+  inviteCode: string
+  role: 'owner' | 'member'
+}
+
+export type HomeMember = {
+  userId: string
+  displayName: string
+  role: 'owner' | 'member'
+  joinedAt: string
+}
+
 type HomeInventory = {
   homeId: string | null
+  home: ActiveHome | null
+  members: HomeMember[]
   spaces: LocalSpace[]
   items: LocalItem[]
   homeLayout: HomeLayout | null
@@ -62,6 +78,8 @@ type HomeInventory = {
 
 const emptyInventory: HomeInventory = {
   homeId: null,
+  home: null,
+  members: [],
   spaces: [],
   items: [],
   homeLayout: null,
@@ -79,13 +97,28 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
     return emptyInventory
   }
 
-  const { data: membership, error: membershipError } = await supabase
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('active_home_id')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (profileError) {
+    throw profileError
+  }
+
+  let membershipQuery = supabase
     .from('home_members')
-    .select('home_id')
+    .select('home_id, role')
     .eq('user_id', userId)
     .order('joined_at')
     .limit(1)
-    .maybeSingle()
+
+  if (profile?.active_home_id) {
+    membershipQuery = membershipQuery.eq('home_id', profile.active_home_id)
+  }
+
+  const { data: membership, error: membershipError } = await membershipQuery.maybeSingle()
 
   if (membershipError) {
     throw membershipError
@@ -95,10 +128,20 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
     return emptyInventory
   }
 
-  const [locationsResult, itemsResult, layoutsResult] = await Promise.all([
+  const [homeResult, membersResult, locationsResult, itemsResult, layoutsResult] = await Promise.all([
+    supabase
+      .from('homes')
+      .select('id, name, invite_code')
+      .eq('id', membership.home_id)
+      .maybeSingle(),
+    supabase
+      .from('home_members')
+      .select('user_id, role, joined_at')
+      .eq('home_id', membership.home_id)
+      .order('joined_at'),
     supabase
       .from('locations')
-      .select('id, name, parent_id, created_at, is_panel_visible')
+      .select('id, name, parent_id, created_at, is_panel_visible, color_hex')
       .eq('home_id', membership.home_id)
       .is('deleted_at', null)
       .order('created_at'),
@@ -114,13 +157,26 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
       .eq('home_id', membership.home_id),
   ])
 
-  for (const result of [locationsResult, itemsResult, layoutsResult]) {
+  for (const result of [homeResult, membersResult, locationsResult, itemsResult, layoutsResult]) {
     if (result.error) {
       throw result.error
     }
   }
 
   const layouts = layoutsResult.data ?? []
+  const members = membersResult.data ?? []
+  const memberUserIds = members.map((member) => member.user_id)
+  const { data: memberProfiles, error: memberProfilesError } = memberUserIds.length > 0
+    ? await supabase
+        .from('profiles')
+        .select('id, display_name')
+        .in('id', memberUserIds)
+    : { data: [], error: null }
+
+  if (memberProfilesError) {
+    throw memberProfilesError
+  }
+  const profileNames = new Map((memberProfiles ?? []).map((memberProfile) => [memberProfile.id, memberProfile.display_name]))
   const layoutIds = layouts.map((layout) => layout.id)
   const [placementsResult, structuresResult] = layoutIds.length > 0
     ? await Promise.all([
@@ -147,6 +203,20 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
 
   return {
     homeId: membership.home_id,
+    home: homeResult.data
+      ? {
+          id: homeResult.data.id,
+          name: homeResult.data.name,
+          inviteCode: homeResult.data.invite_code,
+          role: membership.role as ActiveHome['role'],
+        }
+      : null,
+    members: members.map((member) => ({
+      userId: member.user_id,
+      displayName: profileNames.get(member.user_id) ?? '구성원',
+      role: member.role as HomeMember['role'],
+      joinedAt: member.joined_at,
+    })),
     spaces: (locationsResult.data ?? []).map((location) => ({
       id: location.id,
       name: location.name,
@@ -155,6 +225,7 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
       placement: null,
       createdAt: location.created_at,
       isPanelVisible: location.is_panel_visible,
+      colorHex: location.color_hex,
     })),
     items: (itemsResult.data ?? []).map((item) => ({
       id: item.id,

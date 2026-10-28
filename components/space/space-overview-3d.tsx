@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { BufferGeometry, Float32BufferAttribute } from 'three'
 import { useMemo } from 'react'
 import type { LocalSpace } from '@/lib/space/local-spaces'
+import { getDefaultSpaceColor } from '@/lib/space/colors'
 import type {
   HomeLayout,
   SceneLayout,
@@ -33,8 +34,6 @@ type NestedRoomLayout = {
   depth: number
   color: string
 }
-
-const roomColors = ['#8b5cf6', '#0ea5e9', '#ec4899', '#f59e0b', '#14b8a6']
 
 export function SpaceOverview3d({
   spaces,
@@ -72,7 +71,7 @@ export function SpaceOverview3d({
 
           <HouseStructure homeLayout={homeLayout} />
           {placedRootSpaces.map((space, index) => {
-            const layout = getRoomLayout(space.id, index, homeLayout, homePlacements)
+            const layout = getRoomLayout(space, index, homeLayout, homePlacements)
             if (!layout) return null
 
             const nestedSpaces = getNestedSpaces(space, spaces, layouts, placements, index)
@@ -108,12 +107,12 @@ export function SpaceOverview3d({
 }
 
 function getRoomLayout(
-  spaceId: string,
+  space: LocalSpace,
   index: number,
   homeLayout: HomeLayout | null,
   placements: SpacePlacement[],
 ) : RoomLayout | null {
-  const placement = placements.find((entry) => entry.locationId === spaceId)
+  const placement = placements.find((entry) => entry.locationId === space.id)
 
   if (!homeLayout || !placement) {
     return null
@@ -129,7 +128,7 @@ function getRoomLayout(
     ] as [number, number, number],
     width: placement.widthCm * centimetresToScene,
     depth: placement.depthCm * centimetresToScene,
-    color: roomColors[index % roomColors.length],
+    color: space.colorHex ?? getDefaultSpaceColor(index),
   }
 }
 
@@ -169,7 +168,7 @@ function getNestedSpaces(
           ] as [number, number, number],
           width: placement.widthCm * centimetresToScene,
           depth: placement.depthCm * centimetresToScene,
-          color: roomColors[(colorOffset + index + 1) % roomColors.length],
+          color: space.colorHex ?? getDefaultSpaceColor(colorOffset + index + 1),
         } satisfies NestedRoomLayout,
       }
     })

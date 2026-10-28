@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getDefaultSpaceColor, normalizeSpaceColor } from '@/lib/space/colors'
 import { useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 
 type RegistrationTarget = 'space' | 'item'
@@ -20,6 +21,7 @@ export function CreateRegistrationForm() {
   const [target, setTarget] = useState<RegistrationTarget>('space')
   const [selectedParentId, setSelectedParentId] = useState<string | null>(() => searchParams.get('inside'))
   const [message, setMessage] = useState<string | null>(null)
+  const [spaceColor, setSpaceColor] = useState<string>(getDefaultSpaceColor())
   const { homeId, homeLayout, spaces, refresh, isLoading } = useSupabaseInventory()
   const router = useRouter()
 
@@ -35,6 +37,7 @@ export function CreateRegistrationForm() {
     const name = String(formData.get('name') ?? '').trim()
     const submittedParentId = String(formData.get('parentId') ?? '')
     const parentId = submittedParentId || null
+    const colorHex = normalizeSpaceColor(spaceColor)
 
     if (!homeId || (parentId && !spaces.some((space) => space.id === parentId))) {
       setMessage('선택한 위치를 찾을 수 없습니다. 다시 선택해 주세요.')
@@ -51,11 +54,16 @@ export function CreateRegistrationForm() {
       return
     }
 
+    if (isSpace && !colorHex) {
+      setMessage('공간 색상은 #RRGGBB 형식으로 입력해 주세요.')
+      return
+    }
+
     const supabase = createClient()
     const result = isSpace
       ? await supabase
           .from('locations')
-          .insert({ home_id: homeId, parent_id: parentId, name })
+          .insert({ home_id: homeId, parent_id: parentId, name, color_hex: colorHex })
           .select('id')
           .single()
       : await supabase.from('items').insert({
@@ -131,6 +139,8 @@ export function CreateRegistrationForm() {
           {!isSpace && <Field label="단위" name="unit" placeholder="예: 개" required={false} />}
         </div>
 
+        {isSpace && <SpaceColorField value={spaceColor} onChange={setSpaceColor} />}
+
         {isSpace && (
           <p className="mt-4 rounded-2xl border border-violet-100 bg-violet-50 px-3 py-2 text-sm leading-6 text-violet-900">
             등록 후 이 공간이 들어갈 곳의 <strong>3D 자리 정하기</strong>에서 실제 위치와 크기를 정합니다.
@@ -148,6 +158,36 @@ export function CreateRegistrationForm() {
         등록 내용 확인
       </button>
     </form>
+  )
+}
+
+function SpaceColorField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-extrabold text-slate-900">공간 색상</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">3D와 공간 목록에서 이 공간을 구분하는 색입니다.</p>
+        </div>
+        <input
+          type="color"
+          value={normalizeSpaceColor(value) ?? getDefaultSpaceColor()}
+          onChange={(event) => onChange(event.target.value.toUpperCase())}
+          aria-label="공간 색상 선택"
+          className="size-10 shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
+        />
+      </div>
+      <label className="mt-3 block">
+        <span className="sr-only">HEX 색상값</span>
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value.toUpperCase())}
+          placeholder="#8B5CF6"
+          maxLength={7}
+          className="w-full rounded-xl border border-slate-200 px-3 py-2 font-mono text-sm font-bold uppercase outline-none focus:border-violet-500"
+        />
+      </label>
+    </div>
   )
 }
 

@@ -15,6 +15,7 @@ import { DrawPlacementDialog } from '@/components/space/draw-placement-dialog'
 import { DeleteItemButton } from '@/components/space/delete-item-button'
 import { DeleteSpaceButton } from '@/components/space/delete-space-button'
 import { SpacePanelVisibilityButton } from '@/components/space/space-panel-visibility-button'
+import { SpaceColorPicker } from '@/components/space/space-color-picker'
 import {
   invalidateHomeInventory,
   type HomeLayout,
@@ -184,6 +185,7 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
             <Plus size={16} />
             이 안에 공간 만들기
           </Link>
+          <SpaceColorPicker locationId={location.id} initialColor={location.colorHex} />
           <SpacePanelVisibilityButton locationId={location.id} initialVisibility={location.isPanelVisible !== false} />
           <Link
             href={`/app/space/${location.id}/structure/create`}
@@ -217,6 +219,7 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
             id: child.id,
             name: child.name,
             is_panel_visible: child.isPanelVisible,
+            colorHex: child.colorHex,
           }))}
           items={directItems.map((item) => ({
             title: item.title,
@@ -308,6 +311,7 @@ function getNestedChildren(
       parentId,
       name: child.name,
       isPanelVisible: child.isPanelVisible !== false,
+      colorHex: child.colorHex,
     }]
   })
 }
