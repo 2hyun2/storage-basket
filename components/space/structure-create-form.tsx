@@ -54,6 +54,11 @@ export function StructureCreateForm({
   const bounds: SceneLayoutData | null = layout
     ? { widthCm: layout.widthCm, depthCm: layout.depthCm, heightCm: layout.heightCm }
     : null
+  // 구조물 높이는 별도 입력하지 않는 기본값을 사용한다. 다만 작은 수납공간처럼
+  // 부모 높이가 100cm보다 낮으면 부모 범위를 넘지 않도록 그 높이에 맞춘다.
+  const structureHeightCm = bounds
+    ? Math.min(defaultStructureHeightCm, bounds.heightCm)
+    : defaultStructureHeightCm
   const structures: StructureRecord[] = layout
     ? cachedStructures.filter((structure) => structure.layoutId === layout.id)
     : []
@@ -169,7 +174,7 @@ export function StructureCreateForm({
       y_cm: 0,
       z_cm: planY,
       width_cm: sizeX,
-      height_cm: defaultStructureHeightCm,
+      height_cm: structureHeightCm,
       depth_cm: sizeY,
       color_hex: colorHex,
       is_label_visible: isLabelVisible,
@@ -235,7 +240,7 @@ export function StructureCreateForm({
     id: editingId ?? 'new-structure-preview',
     kind,
     draft,
-    heightCm: defaultStructureHeightCm,
+    heightCm: structureHeightCm,
     colorHex: normalizeSpaceColor(structureColor) ?? getDefaultStructureColor(kind),
     isLabelVisible,
     existingCount: structures.filter((structure) => structure.kind === kind).length,

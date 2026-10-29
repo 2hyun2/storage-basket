@@ -49,7 +49,17 @@ export function CreateRegistrationForm() {
       return
     }
 
-    if (!name || (isSpace && spaces.some((space) => space.parentId === parentId && space.name === name))) {
+    if (!name) {
+      setMessage(isSpace ? '공간 이름을 입력해 주세요.' : '물건 이름을 입력해 주세요.')
+      return
+    }
+
+    if (!isSpace && !parentId) {
+      setMessage('물건을 보관할 공간을 선택해 주세요.')
+      return
+    }
+
+    if (isSpace && spaces.some((space) => space.parentId === parentId && space.name === name)) {
       setMessage('같은 위치 안에는 같은 이름의 공간을 만들 수 없습니다.')
       return
     }

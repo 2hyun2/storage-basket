@@ -27,7 +27,13 @@ export function HomeLayoutSetup() {
       return
     }
 
-    const outOfBoundsPlacement = placements.find((placement) => (
+    // 집 전체 크기를 고칠 때는 집 바로 안에 놓인 공간만 비교한다.
+    // 예를 들어 거실 안 수납장의 좌표는 거실 장면 기준이므로,
+    // 집의 가로·세로를 바꿀 때 함께 검사하면 안 된다.
+    const homePlacements = homeLayout
+      ? placements.filter((placement) => placement.layoutId === homeLayout.id)
+      : []
+    const outOfBoundsPlacement = homePlacements.find((placement) => (
       placement.xCm + placement.widthCm > widthCm ||
       placement.zCm + placement.depthCm > depthCm ||
       placement.yCm + placement.heightCm > heightCm

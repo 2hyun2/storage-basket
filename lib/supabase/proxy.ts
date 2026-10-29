@@ -30,8 +30,13 @@ export async function updateSession(request: NextRequest) {
 
   if (isAppRoute && !claims) {
     const redirectUrl = request.nextUrl.clone()
+    const requestedPath = `${request.nextUrl.pathname}${request.nextUrl.search}`
+
     redirectUrl.pathname = '/login'
-    redirectUrl.searchParams.set('next', request.nextUrl.pathname)
+    redirectUrl.search = ''
+    // 3D 수정처럼 쿼리값에 현재 선택 대상을 담는 화면은
+    // 로그인 뒤에도 같은 대상에 돌아가야 한다.
+    redirectUrl.searchParams.set('next', requestedPath)
     return NextResponse.redirect(redirectUrl)
   }
 
