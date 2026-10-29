@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Box, ChevronRight, Construction, House, Package, Plus } from 'lucide-react'
+import { ArrowLeft, Box, ChevronRight, Construction, History, House, Package, Pencil, Plus } from 'lucide-react'
 import {
   type SceneLayoutData,
   type SceneNestedChild,
@@ -185,6 +185,13 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
             <Plus size={16} />
             이 안에 공간 만들기
           </Link>
+          <Link
+            href={`/app/items?create=1&location=${location.id}`}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-extrabold text-sky-700 transition hover:bg-sky-50"
+          >
+            <Package size={16} />
+            이곳에 물건 등록
+          </Link>
           <SpaceColorPicker locationId={location.id} initialColor={location.colorHex} />
           <SpacePanelVisibilityButton locationId={location.id} initialVisibility={location.isPanelVisible !== false} />
           <Link
@@ -193,6 +200,13 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
           >
             <Construction size={16} />
             벽·창문 설계
+          </Link>
+          <Link
+            href={`/app/archive?space=${location.id}`}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-extrabold text-slate-700 transition hover:bg-slate-50"
+          >
+            <History size={16} />
+            변경 기록
           </Link>
         </div>
 
@@ -258,6 +272,22 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
                 </span>
                 <span className="flex items-center gap-2">
                   <strong>{item.quantity}{item.unit}</strong>
+                  <Link
+                    href={`/app/items?edit=${item.id}`}
+                    className="grid size-7 place-items-center rounded-lg text-slate-400 transition hover:bg-violet-100 hover:text-violet-700"
+                    aria-label={`${item.title} 수정`}
+                    title="물건 수정"
+                  >
+                    <Pencil size={15} />
+                  </Link>
+                  <Link
+                    href={`/app/archive?item=${item.id}`}
+                    className="grid size-7 place-items-center rounded-lg text-slate-400 transition hover:bg-violet-100 hover:text-violet-700"
+                    aria-label={`${item.title} 기록 보기`}
+                    title="변경 기록"
+                  >
+                    <History size={15} />
+                  </Link>
                   <DeleteItemButton itemId={item.id} itemName={item.title} />
                 </span>
               </div>

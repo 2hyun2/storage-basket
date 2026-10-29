@@ -29,7 +29,10 @@ export function DeleteItemButton({ itemId, itemName }: { itemId: string; itemNam
       return
     }
 
-    await invalidateHomeInventory(queryClient)
+    await Promise.all([
+      invalidateHomeInventory(queryClient),
+      queryClient.invalidateQueries({ queryKey: ['trash-items'] }),
+    ])
   }
 
   return (

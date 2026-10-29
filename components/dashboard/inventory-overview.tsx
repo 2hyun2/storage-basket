@@ -218,7 +218,7 @@ function QuickSearchResults({ items, hasItems, hasSearchCondition }: QuickSearch
     <ul className="mt-5 divide-y divide-slate-100">
       {items.map((item) => (
         <li key={item.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-          <span className="flex min-w-0 items-center gap-3">
+          <Link href={`/app/items?edit=${item.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl transition hover:bg-slate-50">
             <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-700">
               <Package size={17} />
             </span>
@@ -226,7 +226,7 @@ function QuickSearchResults({ items, hasItems, hasSearchCondition }: QuickSearch
               <strong className="block truncate text-sm text-slate-900">{item.title}</strong>
               <span className="block truncate text-xs text-slate-500">{item.locationPath}</span>
             </span>
-          </span>
+          </Link>
           <strong className="shrink-0 text-sm text-slate-700">{item.quantity}{item.unit}</strong>
         </li>
       ))}

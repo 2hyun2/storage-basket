@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import {
   Archive,
+  History,
   House,
   LogOut,
   Menu,
@@ -23,6 +24,7 @@ const navigationItems = [
   { href: '/app', label: '홈', description: '물건 검색과 수납 현황', icon: House },
   { href: '/app/space', label: '공간 탐색', description: '우리 집 공간과 3D 배치', icon: Settings2 },
   { href: '/app/community', label: '공동체', description: '구성원과 초대 코드 관리', icon: UsersRound },
+  { href: '/app/archive', label: '변경 기록', description: '물건과 공간의 변경 내역', icon: History },
   { href: '/app/my', label: '마이페이지', description: '계정과 로그인 설정', icon: UserRound },
 ]
 

@@ -18,7 +18,9 @@ type RegistrationTarget = 'space' | 'item'
 
 export function CreateRegistrationForm() {
   const searchParams = useSearchParams()
-  const [target, setTarget] = useState<RegistrationTarget>('space')
+  const [target, setTarget] = useState<RegistrationTarget>(() => (
+    searchParams.get('kind') === 'item' ? 'item' : 'space'
+  ))
   const [selectedParentId, setSelectedParentId] = useState<string | null>(() => searchParams.get('inside'))
   const [message, setMessage] = useState<string | null>(null)
   const [spaceColor, setSpaceColor] = useState<string>(getDefaultSpaceColor())
@@ -82,6 +84,8 @@ export function CreateRegistrationForm() {
         title: name,
         quantity: Number(formData.get('quantity') ?? 1),
         unit: String(formData.get('unit') ?? '') || null,
+        category: String(formData.get('category') ?? '').trim() || null,
+        note: String(formData.get('note') ?? '').trim() || null,
       })
 
     if (result.error) {
@@ -90,7 +94,7 @@ export function CreateRegistrationForm() {
     }
 
     await refresh()
-    router.push('/app/space')
+    router.push(isSpace ? '/app/space' : '/app/items')
   }
 
   const isSpace = target === 'space'
@@ -147,6 +151,8 @@ export function CreateRegistrationForm() {
           )}
           {!isSpace && <Field label="수량" name="quantity" type="number" min="0" defaultValue="1" />}
           {!isSpace && <Field label="단위" name="unit" placeholder="예: 개" required={false} />}
+          {!isSpace && <Field label="카테고리" name="category" placeholder="직접 입력 · 예: 생활용품" required={false} />}
+          {!isSpace && <Field label="메모" name="note" placeholder="예: 여분 보관용" required={false} />}
         </div>
 
         {isSpace && <SpaceColorField value={spaceColor} onChange={setSpaceColor} />}

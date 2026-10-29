@@ -1,16 +1,48 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { FolderSearch, Package, Search, X } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { FolderSearch, History, Package, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { ItemEditorDialog } from '@/components/item-editor-dialog'
 import { useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import {
   type LocalSpace,
 } from '@/lib/space/local-spaces'
 
 export function ItemDirectory() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const { spaces, items } = useSupabaseInventory()
+  const [manualEditor, setManualEditor] = useState<EditorRequest | null>(null)
+  const [dismissedQueryKey, setDismissedQueryKey] = useState<string | null>(null)
+  const editItemId = searchParams.get('edit')
+  const createLocationId = searchParams.get('location')
+  const queryEditor = editItemId && items.some((item) => item.id === editItemId)
+    ? { mode: 'edit' as const, itemId: editItemId }
+    : searchParams.get('create') === '1'
+      ? { mode: 'create' as const }
+      : null
+  const queryKey = queryEditor?.mode === 'edit'
+    ? `edit:${queryEditor.itemId}`
+    : queryEditor?.mode === 'create'
+      ? `create:${createLocationId ?? ''}`
+      : null
+  const activeEditor = manualEditor ?? (
+    queryKey && dismissedQueryKey !== queryKey ? queryEditor : null
+  )
+  const editingItem = activeEditor?.mode === 'edit'
+    ? items.find((item) => item.id === activeEditor.itemId)
+    : undefined
+  const isCreating = activeEditor?.mode === 'create'
+
+  function closeEditor() {
+    setManualEditor(null)
+    setDismissedQueryKey(queryKey)
+    router.replace('/app/items')
+  }
   const itemsWithPath = useMemo(
     () => items.map((item) => ({ ...item, locationPath: getLocationPath(item.locationId, spaces) })),
     [items, spaces],
@@ -44,26 +76,34 @@ export function ItemDirectory() {
         <p className="text-sm font-bold text-slate-500">
           전체 {items.length}종 · 현재 {filteredItems.length}종
         </p>
-        <label className="relative block w-full sm:max-w-xs">
-          <span className="sr-only">물건 검색</span>
-          <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="물건명 또는 보관 위치 검색"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-10 text-sm outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
-              aria-label="검색어 지우기"
-            >
-              <X size={16} />
-            </button>
-          )}
-        </label>
+        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:max-w-xl sm:flex-nowrap">
+          <label className="relative block min-w-0 flex-1">
+            <span className="sr-only">물건 검색</span>
+            <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="물건명 또는 보관 위치 검색"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-10 text-sm outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
+                aria-label="검색어 지우기"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </label>
+          <Link href="/app/items/trash" className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-600 transition hover:bg-slate-50">
+            <Trash2 size={15} /> 휴지통
+          </Link>
+          <button type="button" onClick={() => setManualEditor({ mode: 'create' })} className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-violet-600 px-3 py-2 text-xs font-extrabold text-white transition hover:bg-violet-700">
+            <Plus size={15} /> 물건 등록
+          </button>
+        </div>
       </div>
 
       {categories.length > 0 && (
@@ -119,15 +159,46 @@ export function ItemDirectory() {
                 </span>
                 <strong className="shrink-0 text-sm text-slate-700">{item.quantity}{item.unit}</strong>
               </div>
-              <p className="mt-3 truncate text-xs text-slate-500">{item.locationPath}</p>
-              {item.category && <p className="mt-1 text-xs text-sky-700">{item.category}</p>}
+              <div className="mt-3 flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-xs text-slate-500">{item.locationPath}</p>
+                  {item.category && <p className="mt-1 text-xs text-sky-700">{item.category}</p>}
+                  {item.note && <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{item.note}</p>}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setManualEditor({ mode: 'edit', itemId: item.id })}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-extrabold text-slate-600 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
+                >
+                  <Pencil size={13} /> 수정
+                </button>
+                <Link
+                  href={`/app/archive?item=${item.id}`}
+                  className="grid size-7 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-violet-100 hover:text-violet-700"
+                  aria-label={`${item.title} 기록 보기`}
+                  title="변경 기록"
+                >
+                  <History size={14} />
+                </Link>
+              </div>
             </li>
           ))}
         </ul>
       )}
+      {(isCreating || editingItem) && (
+        <ItemEditorDialog
+          item={editingItem}
+          initialLocationId={isCreating ? createLocationId ?? undefined : undefined}
+          onClose={closeEditor}
+        />
+      )}
     </section>
   )
 }
+
+type EditorRequest =
+  | { mode: 'create' }
+  | { mode: 'edit'; itemId: string }
 
 type CategoryFilterProps = {
   label: string
