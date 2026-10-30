@@ -22,6 +22,7 @@ type SpaceOverview3dProps = {
   structures?: SceneStructure[]
   compact?: boolean
   interactive?: boolean
+  fillHeight?: boolean
 }
 
 const dragDistanceThreshold = 6
@@ -62,6 +63,7 @@ export function SpaceOverview3d({
   structures = [],
   compact = false,
   interactive = true,
+  fillHeight = false,
 }: SpaceOverview3dProps) {
   const router = useRouter()
   const rootSpaces = spaces.filter((space) => space.parentId === null)
@@ -80,15 +82,20 @@ export function SpaceOverview3d({
     : []
 
   return (
-    <div className={`mt-4 overflow-hidden border border-slate-200 bg-white ${compact ? '' : 'shadow-inner'}`}>
+    <div className={fillHeight
+      ? 'flex min-h-80 flex-1 flex-col overflow-hidden bg-[#f8fafc]'
+      : `mt-4 overflow-hidden border border-slate-200 bg-white ${compact ? '' : 'shadow-inner'}`}>
       {!compact && (
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700">
           <span>우리 집 배치도</span>
           <span className="text-violet-600">공간을 클릭해 내부로 이동</span>
         </div>
       )}
-      <div className={compact ? 'h-72 sm:h-80' : 'h-96'}>
-        <Canvas camera={{ position: [0, cameraHeight, 0.01], fov: 42 }}>
+      <div className={fillHeight ? 'relative min-h-80 flex-1' : compact ? 'h-72 sm:h-80' : 'h-96'}>
+        <Canvas
+          style={fillHeight ? { position: 'absolute', inset: 0 } : undefined}
+          camera={{ position: [0, cameraHeight, 0.01], fov: 42 }}
+        >
           <color attach="background" args={['#f8fafc']} />
           <ambientLight intensity={1.5} />
           <directionalLight position={[5, 8, 4]} intensity={2.5} />

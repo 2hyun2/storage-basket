@@ -5,6 +5,7 @@ import { Canvas } from '@react-three/fiber'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useRef, useState, type FormEvent, type PointerEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { RectangularGrid } from '@/components/space/space-overview-3d'
 import { getDefaultSpaceColor } from '@/lib/space/colors'
 import { invalidateHomeInventory, useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
@@ -68,7 +69,6 @@ type DirectItem = {
 }
 
 const centimetresToScene = 0.01
-const defaultSceneHeightCm = 100
 const dragDistanceThreshold = 6
 
 function toSceneCenter({
@@ -255,9 +255,7 @@ function SceneStructureMesh({
   onSelect?: () => void
 }) {
   const width = structure.widthCm * centimetresToScene
-  // 벽·창문은 아직 개별 높이 입력을 제공하지 않는다.
-  // 과거에 서로 다르게 저장된 자동값 대신 공통 기본 높이로 렌더링한다.
-  const renderedHeightCm = planOnly ? 4 : defaultSceneHeightCm
+  const renderedHeightCm = planOnly ? 4 : structure.heightCm
   const height = renderedHeightCm * centimetresToScene
   const depth = structure.depthCm * centimetresToScene
   const defaultColor = {
@@ -496,7 +494,6 @@ export function PlacementEditor({
     height: placement?.heightCm ?? 100,
     depth: placement?.depthCm ?? 80,
   })
-  const [isDuplex, setIsDuplex] = useState((placement?.yCm ?? 0) > 0)
   const overlappingSibling = siblingPlacements.find((sibling) => rectanglesOverlap(
     { x: draft.x, y: draft.y, width: draft.width, height: draft.depth },
     { x: sibling.xCm, y: sibling.zCm, width: sibling.widthCm, height: sibling.depthCm },
@@ -563,7 +560,7 @@ export function PlacementEditor({
     if (bounds && (
       draft.x + draft.width > bounds.widthCm ||
       draft.y + draft.depth > bounds.depthCm ||
-      (isDuplex && draft.z + draft.height > bounds.heightCm)
+      draft.z + draft.height > bounds.heightCm
     )) {
       setMessage('이 공간 안에 들어오도록 위치와 크기를 조정해 주세요.')
       return
@@ -588,7 +585,7 @@ export function PlacementEditor({
       layout_id: layoutId,
       location_id: space.id,
       x_cm: draft.x,
-      y_cm: isDuplex ? draft.z : 0,
+      y_cm: draft.z,
       z_cm: draft.y,
       width_cm: draft.width,
       height_cm: draft.height,
@@ -604,22 +601,7 @@ export function PlacementEditor({
       return
     }
 
-    const { error: layoutError } = await supabase
-      .from('space_layouts')
-      .upsert({
-        home_id: homeId,
-        scene_location_id: space.id,
-        layout_key: `location:${space.id}`,
-        view_kind: 'interior',
-        width_cm: draft.width,
-        height_cm: draft.height,
-        depth_cm: draft.depth,
-      }, { onConflict: 'home_id,layout_key' })
-    if (layoutError) {
-      setMessage(layoutError.message)
-      return
-    }
-
+    // 내부 장면 생성·치수 동기화는 DB 트리거가 같은 트랜잭션에서 처리한다.
     await invalidateHomeInventory(queryClient)
     onClose()
   }
@@ -631,13 +613,17 @@ export function PlacementEditor({
     ['depth', '세로 Y', bounds?.depthCm],
   ] as const
 
-  return (
-    <div className="absolute inset-0 z-10 grid place-items-center bg-slate-950/80 p-4">
-      <form onSubmit={save} className="w-full max-w-md rounded-xl bg-white p-4 text-slate-900 shadow-xl">
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/80 p-4" role="dialog" aria-modal="true" aria-label={`${space.name} 3D 배치`}>
+      <form onSubmit={save} className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md shrink-0 overflow-y-auto rounded-xl bg-white p-4 text-slate-900 shadow-xl">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">{space.name} 3D 자리 정하기</h3>
           <button type="button" onClick={onClose} className="text-sm font-bold text-slate-500">닫기</button>
         </div>
+        {bounds && <PlacementHeightPreview bounds={bounds} siblings={siblingPlacements} draft={draft} color={space.colorHex ?? '#3b82f6'} />}
+        <p className="mt-3 text-xs font-semibold text-slate-700">바닥 위치 정하기 · 아래 격자를 드래그하세요</p>
         <PlanPlacementCanvas
           draft={{
             x: draft.x,
@@ -677,16 +663,10 @@ export function PlacementEditor({
             ))}
           </div>
         </div>
-        <label className="mt-3 flex items-center gap-2 text-xs font-bold">
-          <input type="checkbox" checked={isDuplex} onChange={(event) => { setIsDuplex(event.target.checked); if (!event.target.checked) setDraft({ ...draft, z: 0 }) }} />
-          복층 구조입니다
-        </label>
-        {isDuplex && (
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <NumberInput label={`공간 높이 · 최대 ${bounds?.heightCm ?? '?'}cm`} min={1} max={bounds?.heightCm} value={draft.height} onChange={(height) => setDraft({ ...draft, height })} />
-            <NumberInput label={`층 위치 Z · 최대 ${bounds ? Math.max(0, bounds.heightCm - draft.height) : '?'}cm`} min={0} max={bounds ? Math.max(0, bounds.heightCm - draft.height) : undefined} value={draft.z} onChange={(z) => setDraft({ ...draft, z })} />
-          </div>
-        )}
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <NumberInput label={`바닥에서의 높이 · 최대 ${bounds ? Math.max(0, bounds.heightCm - draft.height) : '?'}cm`} min={0} max={bounds ? Math.max(0, bounds.heightCm - draft.height) : undefined} value={draft.z} onChange={(z) => setDraft({ ...draft, z })} />
+          <NumberInput label={`공간 자체의 높이 · 최대 ${bounds ? Math.max(0, bounds.heightCm - draft.z) : '?'}cm`} min={1} max={bounds ? Math.max(0, bounds.heightCm - draft.z) : undefined} value={draft.height} onChange={(height) => setDraft({ ...draft, height })} />
+        </div>
         {overlappingSibling && <p className="mt-2 text-xs font-bold text-rose-700">현재 위치는 “{overlappingSibling.name}”과 겹칩니다.</p>}
         {message && <p className="mt-2 text-xs font-bold text-rose-700">{message}</p>}
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -704,7 +684,8 @@ export function PlacementEditor({
           </button>
         </div>
       </form>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -717,6 +698,45 @@ export type PlanPlacementDraft = {
   y: number
   width: number
   depth: number
+}
+
+export function PlacementHeightPreview({ bounds, siblings, draft, color }: {
+  bounds: SceneLayoutData
+  siblings: SceneSiblingPlacement[]
+  draft: { x: number; y: number; z: number; width: number; depth: number; height: number }
+  color: string
+}) {
+  const width = bounds.widthCm * centimetresToScene
+  const depth = bounds.depthCm * centimetresToScene
+  const distance = Math.max(width, depth, bounds.heightCm * centimetresToScene, 2)
+  const target: [number, number, number] = [width / 2, bounds.heightCm * centimetresToScene / 3, depth / 2]
+  const blocks = [
+    ...siblings.map((sibling) => ({ ...sibling, color: sibling.kind === 'window' ? '#7dd3fc' : '#94a3b8', selected: false })),
+    { id: 'draft', xCm: draft.x, yCm: draft.z, zCm: draft.y, widthCm: draft.width, heightCm: draft.height, depthCm: draft.depth, color, selected: true },
+  ]
+
+  return (
+    <div className="mt-3 overflow-hidden border border-slate-200 bg-slate-50">
+      <p className="px-3 py-2 text-xs font-semibold text-slate-700">3D 미리보기 · 드래그로 회전</p>
+      <div className="h-56">
+        <Canvas camera={{ position: [width / 2 + distance, distance, depth / 2 + distance], fov: 45 }}>
+          <color attach="background" args={['#f8fafc']} />
+          <ambientLight intensity={1.4} />
+          <directionalLight position={[4, 8, 5]} intensity={2} />
+          <SceneFloor layout={bounds} />
+          {blocks.map((block) => (
+            <mesh key={block.id} position={toSceneCenter({ xCm: block.xCm, elevationCm: block.yCm, planYCm: block.zCm, widthCm: block.widthCm, heightCm: block.heightCm, depthCm: block.depthCm })}>
+              <boxGeometry args={[Math.max(0.01, block.widthCm * centimetresToScene), Math.max(0.01, block.heightCm * centimetresToScene), Math.max(0.01, block.depthCm * centimetresToScene)]} />
+              <meshStandardMaterial color={block.color} transparent opacity={block.selected ? 0.75 : 0.22} />
+              <Edges color={block.selected ? '#1d4ed8' : '#94a3b8'} />
+            </mesh>
+          ))}
+          <OrbitControls target={target} enablePan={false} minDistance={1} maxDistance={distance * 4} />
+        </Canvas>
+      </div>
+      <p className="px-3 py-2 text-xs text-slate-600">바닥에서 {draft.z}cm · 공간 높이 {draft.height}cm · 위쪽 끝 {draft.z + draft.height}cm</p>
+    </div>
+  )
 }
 
 export function PlanPlacementCanvas({

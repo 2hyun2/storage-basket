@@ -6,13 +6,13 @@ import { useState } from 'react'
 import { invalidateHomeInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
 
-export function DeleteItemButton({ itemId, itemName }: { itemId: string; itemName: string }) {
+export function DeleteItemButton({ itemId, itemName, showLabel = false }: { itemId: string; itemName: string; showLabel?: boolean }) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
   async function deleteItem() {
-    if (isDeleting || !window.confirm(`“${itemName}” 물건 기록을 삭제할까요?`)) {
+    if (isDeleting || !window.confirm(`“${itemName}”을 휴지통으로 옮길까요? 나중에 복원할 수 있습니다.`)) {
       return
     }
 
@@ -42,11 +42,12 @@ export function DeleteItemButton({ itemId, itemName }: { itemId: string; itemNam
         type="button"
         onClick={() => void deleteItem()}
         disabled={isDeleting}
-        className="grid size-7 place-items-center rounded-lg text-slate-400 transition hover:bg-rose-100 hover:text-rose-700 disabled:opacity-50"
+        className={`inline-flex items-center justify-center gap-1 rounded-lg text-rose-600 transition hover:bg-rose-100 hover:text-rose-700 disabled:opacity-50 ${showLabel ? 'px-2 py-1.5 text-xs font-semibold' : 'size-7'}`}
         aria-label={`${itemName} 삭제`}
         title="물건 삭제"
       >
         <Trash2 size={15} />
+        {showLabel && (isDeleting ? '삭제 중…' : '삭제')}
       </button>
     </span>
   )

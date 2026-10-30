@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { PanelTop, Pencil, Plus, RectangleHorizontal, Trash2 } from 'lucide-react'
 import {
   PlanPlacementCanvas,
+  PlacementHeightPreview,
   rectanglesOverlap,
   SpaceInterior3d,
   type SceneLayoutData,
@@ -24,9 +25,11 @@ type StructureDraft = {
   planY: NumericInput
   sizeX: NumericInput
   sizeY: NumericInput
+  elevation: NumericInput
+  height: NumericInput
 }
 
-const emptyDraft: StructureDraft = { name: '', planX: '', planY: '', sizeX: '', sizeY: '' }
+const emptyDraft: StructureDraft = { name: '', planX: '', planY: '', sizeX: '', sizeY: '', elevation: 0, height: '' }
 const defaultStructureHeightCm = 100
 
 function getDefaultStructureColor(kind: StructureKind) {
@@ -54,9 +57,8 @@ export function StructureCreateForm({
   const bounds: SceneLayoutData | null = layout
     ? { widthCm: layout.widthCm, depthCm: layout.depthCm, heightCm: layout.heightCm }
     : null
-  // 구조물 높이는 별도 입력하지 않는 기본값을 사용한다. 다만 작은 수납공간처럼
-  // 부모 높이가 100cm보다 낮으면 부모 범위를 넘지 않도록 그 높이에 맞춘다.
-  const structureHeightCm = bounds
+  // 새 구조물은 최대 100cm로 시작하고 기존 구조물은 저장된 높이를 유지한다.
+  const defaultHeightCm = bounds
     ? Math.min(defaultStructureHeightCm, bounds.heightCm)
     : defaultStructureHeightCm
   const structures: StructureRecord[] = layout
@@ -83,7 +85,11 @@ export function StructureCreateForm({
     planY: initialStructure.zCm,
     sizeX: initialStructure.widthCm,
     sizeY: initialStructure.depthCm,
-  } : emptyDraft)
+    elevation: initialStructure.yCm,
+    height: initialStructure.heightCm,
+  } : { ...emptyDraft, height: defaultHeightCm })
+  const structureHeightCm = draft.height === '' ? defaultHeightCm : draft.height
+  const elevationCm = numericValue(draft.elevation)
   const [message, setMessage] = useState<string | null>(null)
   const siblingPlacements: SceneSiblingPlacement[] = [
     ...childSpaces.flatMap((space) => {
@@ -106,7 +112,7 @@ export function StructureCreateForm({
     setEditingId(null)
     setStructureColor(getDefaultStructureColor(nextKind))
     setIsLabelVisible(true)
-    setDraft(emptyDraft)
+    setDraft({ ...emptyDraft, height: defaultHeightCm })
     setMessage(null)
   }
 
@@ -121,6 +127,8 @@ export function StructureCreateForm({
       planY: structure.zCm,
       sizeX: structure.widthCm,
       sizeY: structure.depthCm,
+      elevation: structure.yCm,
+      height: structure.heightCm,
     })
     setMessage(null)
   }
@@ -133,7 +141,7 @@ export function StructureCreateForm({
       return
     }
 
-    const values = [draft.planX, draft.planY, draft.sizeX, draft.sizeY]
+    const values = [draft.planX, draft.planY, draft.sizeX, draft.sizeY, draft.elevation, draft.height]
     if (values.some((value) => value === '' || !Number.isInteger(value))) {
       setMessage('좌표와 크기는 정수 cm로 입력해 주세요. 크기는 1cm 이상이어야 합니다.')
       return
@@ -145,6 +153,10 @@ export function StructureCreateForm({
     const sizeY = numericValue(draft.sizeY)
     const maxX = bounds.widthCm - sizeX
     const maxY = bounds.depthCm - sizeY
+    if (elevationCm < 0 || structureHeightCm < 1 || elevationCm + structureHeightCm > bounds.heightCm) {
+      setMessage('바닥에서의 높이와 공간 자체의 높이의 합이 담고 있는 공간의 높이를 넘을 수 없습니다.')
+      return
+    }
     if (planX < 0 || planY < 0 || sizeX < 1 || sizeY < 1 || sizeX > bounds.widthCm || sizeY > bounds.depthCm || planX > maxX || planY > maxY) {
       setMessage(`이 공간 안에 들어오도록 정해 주세요. 현재 시작할 수 있는 최대값은 X ${Math.max(0, maxX)}cm · Y ${Math.max(0, maxY)}cm입니다.`)
       return
@@ -171,7 +183,7 @@ export function StructureCreateForm({
       kind,
       name,
       x_cm: planX,
-      y_cm: 0,
+      y_cm: elevationCm,
       z_cm: planY,
       width_cm: sizeX,
       height_cm: structureHeightCm,
@@ -328,6 +340,22 @@ export function StructureCreateForm({
         <div className="rounded-xl bg-slate-50 p-3">
           <p className="text-sm font-semibold">cm 위치와 크기</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">X는 왼쪽→오른쪽, Y는 위쪽→아래쪽입니다. 창문은 벽의 자식이 아닌 별도 건축 영역이며, 문은 벽 구간을 비워 개구부로 표현합니다.</p>
+          {bounds && (
+            <PlacementHeightPreview
+              bounds={bounds}
+              siblings={siblingPlacements}
+              draft={{
+                x: numericValue(draft.planX),
+                y: numericValue(draft.planY),
+                z: elevationCm,
+                width: sizeX,
+                depth: sizeY,
+                height: structureHeightCm,
+              }}
+              color={normalizeSpaceColor(structureColor) ?? getDefaultStructureColor(kind)}
+            />
+          )}
+          <p className="mt-3 text-xs font-semibold text-slate-700">바닥 위치 정하기 · 아래 격자를 드래그하세요</p>
           <PlanPlacementCanvas
             draft={{
               x: numericValue(draft.planX),
@@ -364,6 +392,10 @@ export function StructureCreateForm({
               현재 위치는 “{overlappingSibling.name}”과 겹칩니다.
             </p>
           )}
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <NumberField label={`바닥에서의 높이 · 최대 ${bounds ? Math.max(0, bounds.heightCm - structureHeightCm) : '?'}cm`} value={draft.elevation} min={0} max={bounds ? Math.max(0, bounds.heightCm - structureHeightCm) : undefined} onChange={(elevation) => setDraft({ ...draft, elevation })} />
+            <NumberField label={`공간 자체의 높이 · 최대 ${bounds ? Math.max(0, bounds.heightCm - elevationCm) : '?'}cm`} value={draft.height} min={1} max={bounds ? Math.max(0, bounds.heightCm - elevationCm) : undefined} onChange={(height) => setDraft({ ...draft, height })} />
+          </div>
         </div>
 
         {message && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm font-bold text-rose-700">{message}</p>}
@@ -458,7 +490,7 @@ function createPreviewStructure({
     kind,
     name: draft.name.trim() || `${defaultName(kind, existingCount + 1)} 미리보기`,
     xCm: numericValue(draft.planX),
-    yCm: 0,
+    yCm: numericValue(draft.elevation),
     zCm: numericValue(draft.planY),
     widthCm: numericValue(draft.sizeX),
     heightCm,

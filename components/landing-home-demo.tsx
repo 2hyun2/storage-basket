@@ -84,7 +84,7 @@ function structure(
 
 export function LandingHomeDemo() {
   return (
-    <section className="h-full min-h-72 overflow-hidden bg-white">
+    <section className="flex h-full min-h-80 flex-col overflow-hidden bg-[#f8fafc]">
       <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700">
         <span className='text-base text-violet-600'>실제 원룸 배치값 예시</span>
         {/* <span className="text-violet-600">10cm 격자</span> */}
@@ -96,6 +96,7 @@ export function LandingHomeDemo() {
         placements={demoPlacements}
         structures={demoStructures}
         compact
+        fillHeight
         interactive={false}
       />
       {/* <div className="grid grid-cols-3 border-t border-slate-100 bg-white text-center text-[10px] font-bold text-slate-500"> */}

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { FolderSearch, History, MapPinned, Package, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { ItemDetailDialog } from '@/components/item-detail-dialog'
 import { ItemEditorDialog } from '@/components/item-editor-dialog'
+import { DeleteItemButton } from '@/components/space/delete-item-button'
 import { useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import {
   type LocalSpace,
@@ -158,28 +159,28 @@ export function ItemDirectory() {
       ) : (
         <ul className="mt-4 grid gap-3 sm:grid-cols-2">
           {filteredItems.map((item) => (
-            <li key={item.id} className="rounded-xl bg-slate-50 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <span className="flex min-w-0 items-center gap-2.5">
+            <li key={item.id} className="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="flex min-w-0 flex-1 items-center gap-2.5">
                   <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white text-sky-700 shadow-sm">
                     <Package size={16} />
                   </span>
-                  <Link href={`/app/items?detail=${item.id}`} className="block truncate text-sm font-semibold text-slate-900 hover:text-violet-700">{item.title}</Link>
+                  <Link href={`/app/items?detail=${item.id}`} className="min-w-0 break-words text-base font-semibold leading-6 text-slate-900 hover:text-violet-700">{item.title}</Link>
                 </span>
-                <span className="flex shrink-0 flex-wrap justify-end gap-x-2 text-xs font-bold text-slate-600">
+                <span className="flex shrink-0 flex-col gap-1 text-right text-xs text-slate-600">
                   <span>수량: {item.quantity}</span>
                   <span>단위: {item.unit || '없음'}</span>
                 </span>
               </div>
-              <div className="mt-3 flex items-end justify-between gap-3">
-                <div className="min-w-0">
-                  <Link href={`/app/space/${item.locationId}`} className="inline-flex max-w-full items-center gap-1.5 rounded-lg px-1 py-0.5 text-xs font-bold text-violet-700 transition hover:bg-violet-100 hover:text-violet-950" title={`${item.title} 보관 위치: ${item.locationPath}`}>
+              <div className="mt-3 min-w-0 flex-1">
+                  <Link href={`/app/space/${item.locationId}`} className="inline-flex max-w-full items-start gap-1.5 rounded-lg py-0.5 text-sm font-medium text-violet-700 transition hover:bg-violet-100 hover:text-violet-950" title={`${item.title} 보관 위치: ${item.locationPath}`}>
                     <MapPinned size={13} className="shrink-0" />
-                    <span className="truncate">{item.locationPath}</span>
+                    <span className="min-w-0 break-words">{item.locationPath}</span>
                   </Link>
                   {item.category && <p className="mt-1 text-xs text-sky-700">{item.category}</p>}
                   {item.note && <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{item.note}</p>}
-                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
                 <button
                   type="button"
                   onClick={() => setManualEditor({ mode: 'edit', itemId: item.id })}
@@ -195,6 +196,7 @@ export function ItemDirectory() {
                 >
                   <History size={14} /> 상세
                 </Link>
+                <DeleteItemButton itemId={item.id} itemName={item.title} showLabel />
               </div>
             </li>
           ))}

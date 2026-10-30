@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#172e62"/>
+  <circle cx="1110" cy="20" r="300" fill="#1d4ed8" opacity=".35"/>
+  <circle cx="1160" cy="590" r="260" fill="#3b82f6" opacity=".12"/>
+  <g transform="translate(72 64)">
+    <rect width="64" height="64" rx="14" fill="#1d4ed8"/>
+    <g fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16 27h32v21a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4z"/>
+      <rect x="13" y="17" width="38" height="10" rx="3"/>
+      <path d="M27 36h10M25 12l7-5 7 5"/>
+    </g>
+  </g>
+  <g font-family="Malgun Gothic, sans-serif">
+    <text x="154" y="108" font-size="32" font-weight="700" fill="white">우리집 공간록</text>
+    <text x="72" y="244" font-size="52" font-weight="700" fill="white">내 공간을 직접 만들고,</text>
+    <text x="72" y="322" font-size="52" font-weight="700" fill="#93c5fd">물건의 자리를 기억하세요.</text>
+    <text x="72" y="400" font-size="26" fill="#dbeafe">3D로 꾸미며 정리하는 우리 집 기록</text>
+    <rect x="72" y="480" width="350" height="56" rx="14" fill="white"/>
+    <text x="96" y="517" font-size="24" font-weight="700" fill="#1d4ed8">공간 설계 · 물건 찾기 · 함께</text>
+    <text x="72" y="590" font-size="19" fill="#93c5fd">storage-basket.vercel.app</text>
+  </g>
+</svg>

@@ -8,7 +8,7 @@ import { useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 
 export function StructureCreatePageClient({ locationId }: { locationId: string }) {
   const searchParams = useSearchParams()
-  const { spaces, isLoading, error } = useSupabaseInventory()
+  const { spaces, structures, isLoading, error } = useSupabaseInventory()
   const location = spaces.find((space) => space.id === locationId) ?? null
 
   if (isLoading) {
@@ -32,6 +32,7 @@ export function StructureCreatePageClient({ locationId }: { locationId: string }
           <p className="mt-3 text-sm leading-6 text-slate-500">이 공간 안에서 벽과 창문의 위치·크기를 cm 단위로 정합니다. 통로는 벽 구간을 비워 표현합니다.</p>
           <div className="mt-8">
             <StructureCreateForm
+              key={`${location.id}:${searchParams.get('edit') ?? 'new'}:${structures.find((entry) => entry.id === searchParams.get('edit'))?.id ?? 'loading'}`}
               locationId={location.id}
               locationName={location.name}
               initialEditId={searchParams.get('edit') ?? undefined}

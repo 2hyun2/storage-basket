@@ -8,6 +8,7 @@ import type { LocalItem } from '@/lib/space/local-items'
 import type { LocalSpace } from '@/lib/space/local-spaces'
 import { createClient } from '@/lib/supabase/client'
 import { useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
+import { DeleteItemButton } from '@/components/space/delete-item-button'
 
 type ItemActivityPreview = {
   id: string
@@ -130,6 +131,9 @@ export function ItemDetailDialog({
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           <button type="button" onClick={onEdit} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-semibold text-violet-700 transition hover:bg-violet-50"><Pencil size={16} /> 수정</button>
           <Link href={`/app/archive?item=${item.id}`} onClick={onClose} className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"><History size={16} /> 전체 기록 보기</Link>
+        </div>
+        <div className="mt-3 flex justify-end">
+          <DeleteItemButton itemId={item.id} itemName={item.title} showLabel />
         </div>
       </section>
     </div>

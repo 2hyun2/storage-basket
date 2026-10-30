@@ -1,8 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Box, ChevronRight, Construction, History, House, Package, Pencil, Plus } from 'lucide-react'
 import {
@@ -18,16 +16,13 @@ import { SpacePanelVisibilityButton } from '@/components/space/space-panel-visib
 import { SpaceColorPicker } from '@/components/space/space-color-picker'
 import { SpaceNameEditor } from '@/components/space/space-name-editor'
 import {
-  invalidateHomeInventory,
   type HomeLayout,
   type SceneLayout,
   useSupabaseInventory,
 } from '@/lib/space/use-supabase-inventory'
-import { createClient } from '@/lib/supabase/client'
 
 export function SpaceDetailClient({ locationId, draw }: { locationId: string; draw?: string }) {
   const {
-    homeId,
     spaces,
     items,
     homeLayout,
@@ -37,7 +32,6 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
     isLoading,
     error,
   } = useSupabaseInventory()
-  const queryClient = useQueryClient()
   const router = useRouter()
   const location = spaces.find((space) => space.id === locationId) ?? null
   const parentLayout = location
@@ -45,62 +39,9 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
       ? layouts.find((layout) => layout.sceneLocationId === location.parentId) ?? null
       : homeLayout
     : null
-  const parentPlacement = location?.parentId
-    ? placements.find((placement) => placement.locationId === location.parentId) ?? null
-    : null
   const ownSceneLayout = location
     ? layouts.find((layout) => layout.sceneLocationId === location.id) ?? null
     : null
-  const ownPlacement = location && parentLayout
-    ? placements.find((placement) => placement.layoutId === parentLayout.id && placement.locationId === location.id) ?? null
-    : null
-
-  useEffect(() => {
-    if (!location || !location.parentId || parentLayout || !parentPlacement || !homeId) {
-      return
-    }
-
-    void createClient()
-      .from('space_layouts')
-      .upsert({
-        home_id: homeId,
-        scene_location_id: location.parentId,
-        layout_key: `location:${location.parentId}`,
-        view_kind: 'interior',
-        width_cm: parentPlacement.widthCm,
-        height_cm: parentPlacement.heightCm,
-        depth_cm: parentPlacement.depthCm,
-      }, { onConflict: 'home_id,layout_key' })
-      .then(() => invalidateHomeInventory(queryClient))
-  }, [homeId, location, parentLayout, parentPlacement, queryClient])
-
-  useEffect(() => {
-    if (!location || !ownPlacement || !homeId) {
-      return
-    }
-
-    const isAlreadySynced = ownSceneLayout &&
-      ownSceneLayout.widthCm === ownPlacement.widthCm &&
-      ownSceneLayout.heightCm === ownPlacement.heightCm &&
-      ownSceneLayout.depthCm === ownPlacement.depthCm
-
-    if (isAlreadySynced) {
-      return
-    }
-
-    void createClient()
-      .from('space_layouts')
-      .upsert({
-        home_id: homeId,
-        scene_location_id: location.id,
-        layout_key: `location:${location.id}`,
-        view_kind: 'interior',
-        width_cm: ownPlacement.widthCm,
-        height_cm: ownPlacement.heightCm,
-        depth_cm: ownPlacement.depthCm,
-      }, { onConflict: 'home_id,layout_key' })
-      .then(() => invalidateHomeInventory(queryClient))
-  }, [homeId, location, ownPlacement, ownSceneLayout, queryClient])
 
   if (isLoading) {
     return <SpaceDetailLoading />
