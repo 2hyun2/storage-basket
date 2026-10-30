@@ -138,7 +138,7 @@ export function SpaceInterior3d({
   const router = useRouter()
 
   return (
-    <section className="mt-6 overflow-hidden border border-slate-200 bg-white shadow-inner">
+    <section className="mt-4 overflow-hidden border border-slate-200 bg-white shadow-inner">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700">
         <span>{spaceName} 3D 구조</span>
         <span className="text-violet-600">모든 치수는 cm · 블록을 클릭해 들어가기</span>
@@ -187,11 +187,11 @@ export function SpaceInterior3d({
       </div>
       <div className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600">
         집 구조 {structures.length}개 · 안에 있는 공간 {childSpaces.length}개
-        {items.length > 0 && ` · 직접 보관: ${items.map((item) => `${item.title} ${item.quantity}${item.unit ?? ''}`).join(' · ')}`}
+        {items.length > 0 && ` · 직접 보관: ${items.map((item) => `${item.title} (수량: ${item.quantity} · 단위: ${item.unit || '없음'})`).join(' · ')}`}
       </div>
       {unplacedSpaces.length > 0 && (
         <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-          <p className="font-extrabold">아직 자리를 정하지 않은 공간</p>
+          <p className="font-semibold">아직 자리를 정하지 않은 공간</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {unplacedSpaces.map((space) => <button key={space.id} type="button" onClick={() => setEditingSpace(space)} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-bold hover:bg-violet-600">{space.name} · 자리 정하기</button>)}
           </div>
@@ -633,9 +633,9 @@ export function PlacementEditor({
 
   return (
     <div className="absolute inset-0 z-10 grid place-items-center bg-slate-950/80 p-4">
-      <form onSubmit={save} className="w-full max-w-md rounded-2xl bg-white p-4 text-slate-900 shadow-xl">
+      <form onSubmit={save} className="w-full max-w-md rounded-xl bg-white p-4 text-slate-900 shadow-xl">
         <div className="flex items-center justify-between">
-          <h3 className="font-extrabold">{space.name} 3D 자리 정하기</h3>
+          <h3 className="font-semibold">{space.name} 3D 자리 정하기</h3>
           <button type="button" onClick={onClose} className="text-sm font-bold text-slate-500">닫기</button>
         </div>
         <PlanPlacementCanvas
@@ -662,16 +662,16 @@ export function PlacementEditor({
           <p><strong>현재 X에서 가능한 Y:</strong> {formatCoordinateRanges(availableYRanges)}</p>
           {wallDistances && <p><strong>현재 배치에서 벽까지:</strong> 왼쪽 {wallDistances.left}cm · 오른쪽 {wallDistances.right}cm · 위 {wallDistances.top}cm · 아래 {wallDistances.bottom}cm</p>}
         </div>
-        <p className="mt-2 text-xs font-bold text-slate-600">드래그 결과는 아래에서 1cm 단위 정밀 조정</p>
+        <p className="mt-2 text-xs font-bold text-slate-600">드래그는 10cm 격자에 맞춰집니다. 아래에서 1cm 단위로 정밀 조정할 수 있습니다.</p>
         <div className="mt-2 space-y-3">
           <div className="grid grid-cols-2 gap-2">
-            <p className="col-span-2 text-xs font-extrabold text-slate-700">시작 위치 · X는 왼쪽→오른쪽, Y는 위쪽→아래쪽</p>
+            <p className="col-span-2 text-xs font-semibold text-slate-700">시작 위치 · X는 왼쪽→오른쪽, Y는 위쪽→아래쪽</p>
             {fields.slice(0, 2).map(([key, label, max]) => (
               <NumberInput key={key} label={`${label} · 최대 ${max ?? '?'}cm`} min={0} max={max} value={draft[key]} onChange={(value) => setDraft({ ...draft, [key]: value })} />
             ))}
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <p className="col-span-2 text-xs font-extrabold text-slate-700">공간 크기 · 가로는 X, 세로는 Y</p>
+            <p className="col-span-2 text-xs font-semibold text-slate-700">공간 크기 · 가로는 X, 세로는 Y</p>
             {fields.slice(2).map(([key, label, max]) => (
               <NumberInput key={key} label={`${label} · 최대 ${max ?? '?'}cm`} min={1} max={max} value={draft[key]} onChange={(value) => setDraft({ ...draft, [key]: value })} />
             ))}
@@ -694,12 +694,12 @@ export function PlacementEditor({
             <button
               type="button"
               onClick={() => void removePlacement()}
-              className="rounded-xl border border-rose-200 bg-white py-2 text-sm font-extrabold text-rose-700 transition hover:bg-rose-50"
+              className="rounded-xl border border-rose-200 bg-white py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
             >
               3D 배치 지우기
             </button>
           )}
-          <button className="rounded-xl bg-violet-600 py-2 text-sm font-extrabold text-white">
+          <button className="rounded-xl bg-violet-600 py-2 text-sm font-semibold text-white">
             저장
           </button>
         </div>
@@ -742,10 +742,12 @@ export function PlanPlacementCanvas({
 
   function point(event: PointerEvent<HTMLDivElement>) {
     const rect = canvasRef.current!.getBoundingClientRect()
+    const rawX = (event.clientX - rect.left) / rect.width * widthCm
+    const rawY = (event.clientY - rect.top) / rect.height * depthCm
 
     return {
-      x: Math.max(0, Math.round((event.clientX - rect.left) / rect.width * widthCm)),
-      y: Math.max(0, Math.round((event.clientY - rect.top) / rect.height * depthCm)),
+      x: snapToGrid(rawX, widthCm, gridStepCm),
+      y: snapToGrid(rawY, depthCm, gridStepCm),
     }
   }
 
@@ -760,26 +762,36 @@ export function PlanPlacementCanvas({
     }
 
     const next = point(event)
-    const x = Math.min(startRef.current.x, next.x)
-    const y = Math.min(startRef.current.y, next.y)
+    const minimumWidth = Math.min(gridStepCm, widthCm)
+    const minimumDepth = Math.min(gridStepCm, depthCm)
+    const x = Math.min(
+      Math.min(startRef.current.x, next.x),
+      widthCm - minimumWidth,
+    )
+    const y = Math.min(
+      Math.min(startRef.current.y, next.y),
+      depthCm - minimumDepth,
+    )
 
     onChange({
       ...draft,
       x,
       y,
-      width: Math.max(1, Math.abs(next.x - startRef.current.x)),
-      depth: Math.max(1, Math.abs(next.y - startRef.current.y)),
+      // 드래그 결과도 10cm 단위라는 약속을 지킨다. 한 칸보다 짧게 클릭해도
+      // 1cm짜리 예외 영역을 만들지 않고 최소 한 칸(10cm)으로 만든다.
+      width: Math.min(widthCm - x, Math.max(minimumWidth, Math.abs(next.x - startRef.current.x))),
+      depth: Math.min(depthCm - y, Math.max(minimumDepth, Math.abs(next.y - startRef.current.y))),
     })
     startRef.current = null
   }
 
   return (
     <div className="mt-4 grid grid-cols-[1.75rem_minmax(0,1fr)] grid-rows-[1.25rem_auto]">
-      <div className="border-b border-r border-violet-200 bg-violet-50 text-center text-[9px] font-extrabold leading-5 text-violet-800">
+      <div className="border-b border-r border-violet-200 bg-violet-50 text-center text-[9px] font-semibold leading-5 text-violet-800">
         cm
       </div>
       <div className="pointer-events-none relative border-b border-violet-200 bg-violet-50">
-        <span className="absolute left-1 top-0.5 text-[9px] font-extrabold text-violet-800">X →</span>
+        <span className="absolute left-1 top-0.5 text-[9px] font-semibold text-violet-800">X →</span>
         {xTicks.map((value) => (
           <div
             key={`x-${value}`}
@@ -794,7 +806,7 @@ export function PlanPlacementCanvas({
         ))}
       </div>
       <div className="pointer-events-none relative border-r border-violet-200 bg-violet-50">
-        <span className="absolute left-1 top-1 text-[9px] font-extrabold text-violet-800">Y</span>
+        <span className="absolute left-1 top-1 text-[9px] font-semibold text-violet-800">Y</span>
         {yTicks.map((value) => (
           <div
             key={`y-${value}`}
@@ -816,7 +828,7 @@ export function PlanPlacementCanvas({
           aspectRatio: `${widthCm} / ${depthCm}`,
           backgroundSize: `${gridStepCm / widthCm * 100}% ${gridStepCm / depthCm * 100}%`,
         }}
-        className="relative w-full cursor-crosshair overflow-hidden border border-violet-200 bg-[linear-gradient(#ede9fe_1px,transparent_1px),linear-gradient(90deg,#ede9fe_1px,transparent_1px)]"
+        className="relative w-full cursor-crosshair overflow-hidden border border-violet-200 bg-[linear-gradient(#dbeafe_1px,transparent_1px),linear-gradient(90deg,#dbeafe_1px,transparent_1px)]"
       >
       {siblings.map((sibling) => {
         const blockedLeft = Math.max(0, sibling.xCm - draft.width)
@@ -846,7 +858,7 @@ export function PlanPlacementCanvas({
             width: `${sibling.widthCm / widthCm * 100}%`,
             height: `${sibling.depthCm / depthCm * 100}%`,
           }}
-          className={`pointer-events-none absolute grid place-items-center border-2 px-1 text-center text-[10px] font-extrabold ${sibling.kind === 'window' ? 'border-sky-600 bg-sky-300/50 text-sky-950' : sibling.kind === 'wall' ? 'border-stone-500 bg-stone-300/45 text-stone-800' : 'border-slate-500 bg-slate-400/35 text-slate-700'}`}
+          className={`pointer-events-none absolute grid place-items-center border-2 px-1 text-center text-[10px] font-semibold ${sibling.kind === 'window' ? 'border-sky-600 bg-sky-300/50 text-sky-950' : sibling.kind === 'wall' ? 'border-stone-500 bg-stone-300/45 text-stone-800' : 'border-slate-500 bg-slate-400/35 text-slate-700'}`}
         >
           <span className="max-w-full truncate">{sibling.name}</span>
         </div>
@@ -855,6 +867,13 @@ export function PlanPlacementCanvas({
       </div>
     </div>
   )
+}
+
+function snapToGrid(value: number, maximum: number, stepCm: number) {
+  const clampedValue = Math.max(0, Math.min(maximum, value))
+  const snappedValue = Math.round(clampedValue / stepCm) * stepCm
+
+  return Math.max(0, Math.min(maximum, snappedValue))
 }
 
 function getRulerTicks(maximumCm: number) {

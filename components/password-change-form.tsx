@@ -9,7 +9,7 @@ export function PasswordChangeForm() {
   const [state, formAction, pending] = useActionState(changePassword, initialState)
 
   return (
-    <form action={formAction} className="mt-7">
+    <form action={formAction} className="mt-4">
       <div className="space-y-4">
         <PasswordField label="현재 비밀번호" name="currentPassword" placeholder="현재 비밀번호 입력" autoComplete="current-password" />
         <PasswordField label="새 비밀번호" name="newPassword" placeholder="8자 이상 입력" autoComplete="new-password" />
@@ -17,19 +17,19 @@ export function PasswordChangeForm() {
       </div>
 
       {state.error && (
-        <p role="alert" className="mt-5 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium leading-6 text-rose-700">
+        <p role="alert" className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium leading-6 text-rose-700">
           {state.error}
         </p>
       )}
       {state.message && (
-        <p className="mt-5 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium leading-6 text-emerald-700">
+        <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium leading-6 text-emerald-700">
           {state.message}
         </p>
       )}
 
       <button
         disabled={pending}
-        className="mt-6 w-full rounded-2xl bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60"
+        className="mt-4 w-full rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60"
       >
         {pending ? '비밀번호 변경 중…' : '비밀번호 변경'}
       </button>

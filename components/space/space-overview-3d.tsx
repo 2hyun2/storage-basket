@@ -21,6 +21,7 @@ type SpaceOverview3dProps = {
   placements: SpacePlacement[]
   structures?: SceneStructure[]
   compact?: boolean
+  interactive?: boolean
 }
 
 const dragDistanceThreshold = 6
@@ -60,6 +61,7 @@ export function SpaceOverview3d({
   placements = [],
   structures = [],
   compact = false,
+  interactive = true,
 }: SpaceOverview3dProps) {
   const router = useRouter()
   const rootSpaces = spaces.filter((space) => space.parentId === null)
@@ -109,6 +111,7 @@ export function SpaceOverview3d({
                 layout={layout}
                 nestedSpaces={nestedSpaces}
                 nestedStructures={nestedStructures}
+              interactive={interactive}
               />
             )
           })}
@@ -123,7 +126,7 @@ export function SpaceOverview3d({
           />
         </Canvas>
       </div>
-      {unplacedRootSpaces.length > 0 && (
+      {interactive && unplacedRootSpaces.length > 0 && (
         <div className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
           <p>아직 자리를 정하지 않은 공간</p>
           <div className="mt-2 flex flex-wrap gap-2">{unplacedRootSpaces.map((space) => <button key={space.id} type="button" onClick={() => router.push(`/app/space/${space.id}?draw=1`)} className="rounded-lg bg-violet-100 px-2 py-1 font-bold text-violet-700">{space.name} · 3D 자리 정하기</button>)}</div>
@@ -263,7 +266,7 @@ function HouseStructure({ homeLayout }: { homeLayout: HomeLayout | null }) {
         depth={depth}
         divisions={gridDivisions}
         positionY={-0.02}
-        color="#ddd6fe"
+        color="#bfdbfe"
       />
     </group>
   )
@@ -274,11 +277,13 @@ function RoomZone({
   layout,
   nestedSpaces,
   nestedStructures,
+  interactive,
 }: {
   space: LocalSpace
   layout: RoomLayout
   nestedSpaces: Array<{ space: LocalSpace, layout: NestedRoomLayout }>
   nestedStructures: StructureLayout[]
+  interactive: boolean
 }) {
   const router = useRouter()
 
@@ -286,20 +291,20 @@ function RoomZone({
     <group position={layout.position}>
       <mesh
         position={[0, 0.02, 0]}
-        onClick={(event) => {
+        onClick={interactive ? (event) => {
           if (event.delta > dragDistanceThreshold) {
             return
           }
 
           router.push(`/app/space/${space.id}`)
-        }}
-        onPointerEnter={(event) => {
+        } : undefined}
+        onPointerEnter={interactive ? (event) => {
           event.stopPropagation()
           document.body.style.cursor = 'pointer'
-        }}
-        onPointerLeave={() => {
+        } : undefined}
+        onPointerLeave={interactive ? () => {
           document.body.style.cursor = 'auto'
-        }}
+        } : undefined}
       >
         <boxGeometry args={[layout.width, 0.04, layout.depth]} />
         <meshStandardMaterial color={layout.color} transparent opacity={0.16} roughness={0.5} />
@@ -321,10 +326,11 @@ function RoomZone({
           key={nestedSpace.id}
           space={nestedSpace}
           layout={nestedLayout}
+          interactive={interactive}
         />
       ))}
       {nestedStructures.map((structure) => (
-        <StructureZone key={structure.id} structure={structure} nested />
+        <StructureZone key={structure.id} structure={structure} nested interactive={interactive} />
       ))}
     </group>
   )
@@ -333,9 +339,11 @@ function RoomZone({
 function StructureZone({
   structure,
   nested = false,
+  interactive = true,
 }: {
   structure: StructureLayout
   nested?: boolean
+  interactive?: boolean
 }) {
   const router = useRouter()
   const renderedHeight = nested ? structure.height : 0.04
@@ -345,7 +353,7 @@ function StructureZone({
     <group position={[structure.position[0], baseHeight, structure.position[2]]}>
       <mesh
         position={[0, renderedHeight / 2, 0]}
-        onClick={structure.editHref ? (event) => {
+        onClick={interactive && structure.editHref ? (event) => {
           if (event.delta > dragDistanceThreshold) {
             return
           }
@@ -356,11 +364,11 @@ function StructureZone({
             router.push(editHref)
           }
         } : undefined}
-        onPointerEnter={structure.editHref ? (event) => {
+        onPointerEnter={interactive && structure.editHref ? (event) => {
           event.stopPropagation()
           document.body.style.cursor = 'pointer'
         } : undefined}
-        onPointerLeave={structure.editHref ? () => {
+        onPointerLeave={interactive && structure.editHref ? () => {
           document.body.style.cursor = 'auto'
         } : undefined}
       >
@@ -385,9 +393,11 @@ function StructureZone({
 function NestedRoomZone({
   space,
   layout,
+  interactive,
 }: {
   space: LocalSpace
   layout: NestedRoomLayout
+  interactive: boolean
 }) {
   const router = useRouter()
 
@@ -395,21 +405,21 @@ function NestedRoomZone({
     <group position={layout.position}>
       <mesh
         position={[0, layout.height / 2, 0]}
-        onClick={(event) => {
+        onClick={interactive ? (event) => {
           if (event.delta > dragDistanceThreshold) {
             return
           }
 
           event.stopPropagation()
           router.push(`/app/space/${space.id}`)
-        }}
-        onPointerEnter={(event) => {
+        } : undefined}
+        onPointerEnter={interactive ? (event) => {
           event.stopPropagation()
           document.body.style.cursor = 'pointer'
-        }}
-        onPointerLeave={() => {
+        } : undefined}
+        onPointerLeave={interactive ? () => {
           document.body.style.cursor = 'auto'
-        }}
+        } : undefined}
       >
         <boxGeometry args={[layout.width, layout.height, layout.depth]} />
         <meshStandardMaterial color={layout.color} transparent opacity={0.42} roughness={0.45} />

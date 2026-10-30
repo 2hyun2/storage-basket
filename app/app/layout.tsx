@@ -21,7 +21,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const email = user.email ?? ''
 
   return (
-    <div className="min-h-dvh bg-[#f8f7ff]">
+    <div className="min-h-dvh bg-[#f5f8fd]">
       <AppHeader displayName={displayName} email={email} />
       {children}
       <AppFooter />

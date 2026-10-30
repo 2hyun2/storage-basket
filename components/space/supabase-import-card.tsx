@@ -77,31 +77,31 @@ export function SupabaseImportCard() {
   }
 
   return (
-    <section className="mt-6 rounded-3xl border border-sky-200 bg-sky-50 p-4 sm:p-6">
+    <section className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 sm:p-4">
       <div className="flex items-start gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-sky-600 text-white">
           <Database size={18} />
         </span>
         <div>
-          <h2 className="font-extrabold text-sky-950">Supabase로 현재 데이터 가져오기</h2>
+          <h2 className="font-semibold text-sky-950">Supabase로 현재 데이터 가져오기</h2>
           <p className="mt-1 text-sm leading-6 text-sky-800">
             이 브라우저의 공간 {spaces.length}곳과 물건 {items.length}종을 로그인한 개인 Home에 저장합니다.
           </p>
         </div>
       </div>
 
-      <div className="mt-4 flex items-start gap-2 rounded-2xl border border-sky-200 bg-white/80 px-3 py-2 text-xs leading-5 text-sky-900">
+      <div className="mt-4 flex items-start gap-2 rounded-xl border border-sky-200 bg-white/80 px-3 py-2 text-xs leading-5 text-sky-900">
         <TriangleAlert size={15} className="mt-0.5 shrink-0" />
         <p>가져오기 전에는 SQL migration을 먼저 실행해야 합니다. 같은 임시 데이터는 다시 가져와도 중복 생성하지 않습니다.</p>
       </div>
 
       {result && (
-        <p className="mt-4 rounded-2xl bg-emerald-100 px-3 py-2 text-sm font-bold text-emerald-800">
+        <p className="mt-4 rounded-xl bg-emerald-100 px-3 py-2 text-sm font-bold text-emerald-800">
           완료: 새 공간 {result.createdLocations}곳, 새 물건 {result.createdItems}종을 저장했습니다.
         </p>
       )}
       {errorMessage && (
-        <p role="alert" className="mt-4 rounded-2xl bg-rose-100 px-3 py-2 text-sm font-bold text-rose-800">
+        <p role="alert" className="mt-4 rounded-xl bg-rose-100 px-3 py-2 text-sm font-bold text-rose-800">
           {errorMessage}
         </p>
       )}

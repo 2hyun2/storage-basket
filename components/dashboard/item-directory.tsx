@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { FolderSearch, History, Package, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { FolderSearch, History, MapPinned, Package, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { ItemDetailDialog } from '@/components/item-detail-dialog'
 import { ItemEditorDialog } from '@/components/item-editor-dialog'
 import { useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import {
@@ -19,6 +20,7 @@ export function ItemDirectory() {
   const [manualEditor, setManualEditor] = useState<EditorRequest | null>(null)
   const [dismissedQueryKey, setDismissedQueryKey] = useState<string | null>(null)
   const editItemId = searchParams.get('edit')
+  const detailItemId = searchParams.get('detail')
   const createLocationId = searchParams.get('location')
   const queryEditor = editItemId && items.some((item) => item.id === editItemId)
     ? { mode: 'edit' as const, itemId: editItemId }
@@ -36,11 +38,18 @@ export function ItemDirectory() {
   const editingItem = activeEditor?.mode === 'edit'
     ? items.find((item) => item.id === activeEditor.itemId)
     : undefined
+  const detailItem = !activeEditor && detailItemId
+    ? items.find((item) => item.id === detailItemId)
+    : undefined
   const isCreating = activeEditor?.mode === 'create'
 
   function closeEditor() {
     setManualEditor(null)
     setDismissedQueryKey(queryKey)
+    router.replace('/app/items')
+  }
+
+  function closeDetail() {
     router.replace('/app/items')
   }
   const itemsWithPath = useMemo(
@@ -71,7 +80,7 @@ export function ItemDirectory() {
   }, [itemsWithPath, searchQuery, selectedCategory])
 
   return (
-    <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+    <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-4">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <p className="text-sm font-bold text-slate-500">
           전체 {items.length}종 · 현재 {filteredItems.length}종
@@ -97,17 +106,17 @@ export function ItemDirectory() {
               </button>
             )}
           </label>
-          <Link href="/app/items/trash" className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-600 transition hover:bg-slate-50">
+          <Link href="/app/items/trash" className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
             <Trash2 size={15} /> 휴지통
           </Link>
-          <button type="button" onClick={() => setManualEditor({ mode: 'create' })} className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-violet-600 px-3 py-2 text-xs font-extrabold text-white transition hover:bg-violet-700">
+          <button type="button" onClick={() => setManualEditor({ mode: 'create' })} className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-violet-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-violet-700">
             <Plus size={15} /> 물건 등록
           </button>
         </div>
       </div>
 
       {categories.length > 0 && (
-        <div className="mt-5 flex flex-wrap gap-2" aria-label="물건 카테고리">
+        <div className="mt-4 flex flex-wrap gap-2" aria-label="물건 카테고리">
           <CategoryFilter
             label="전체"
             count={items.length}
@@ -127,12 +136,12 @@ export function ItemDirectory() {
       )}
 
       {items.length === 0 ? (
-        <div className="mt-5 rounded-2xl bg-slate-50 px-4 py-8 text-center">
+        <div className="mt-4 rounded-xl bg-slate-50 px-4 py-4 text-center">
           <FolderSearch size={24} className="mx-auto text-slate-400" />
           <p className="mt-3 text-sm font-bold text-slate-700">아직 등록된 물건이 없습니다.</p>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="mt-5 rounded-2xl bg-slate-50 px-4 py-8 text-center">
+        <div className="mt-4 rounded-xl bg-slate-50 px-4 py-4 text-center">
           <FolderSearch size={24} className="mx-auto text-slate-400" />
           <p className="mt-3 text-sm font-bold text-slate-700">조건에 맞는 물건이 없습니다.</p>
           <button
@@ -147,38 +156,44 @@ export function ItemDirectory() {
           </button>
         </div>
       ) : (
-        <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+        <ul className="mt-4 grid gap-3 sm:grid-cols-2">
           {filteredItems.map((item) => (
-            <li key={item.id} className="rounded-2xl bg-slate-50 p-4">
+            <li key={item.id} className="rounded-xl bg-slate-50 p-4">
               <div className="flex items-center justify-between gap-3">
                 <span className="flex min-w-0 items-center gap-2.5">
                   <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white text-sky-700 shadow-sm">
                     <Package size={16} />
                   </span>
-                  <strong className="truncate text-sm text-slate-900">{item.title}</strong>
+                  <Link href={`/app/items?detail=${item.id}`} className="block truncate text-sm font-semibold text-slate-900 hover:text-violet-700">{item.title}</Link>
                 </span>
-                <strong className="shrink-0 text-sm text-slate-700">{item.quantity}{item.unit}</strong>
+                <span className="flex shrink-0 flex-wrap justify-end gap-x-2 text-xs font-bold text-slate-600">
+                  <span>수량: {item.quantity}</span>
+                  <span>단위: {item.unit || '없음'}</span>
+                </span>
               </div>
               <div className="mt-3 flex items-end justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-xs text-slate-500">{item.locationPath}</p>
+                  <Link href={`/app/space/${item.locationId}`} className="inline-flex max-w-full items-center gap-1.5 rounded-lg px-1 py-0.5 text-xs font-bold text-violet-700 transition hover:bg-violet-100 hover:text-violet-950" title={`${item.title} 보관 위치: ${item.locationPath}`}>
+                    <MapPinned size={13} className="shrink-0" />
+                    <span className="truncate">{item.locationPath}</span>
+                  </Link>
                   {item.category && <p className="mt-1 text-xs text-sky-700">{item.category}</p>}
                   {item.note && <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{item.note}</p>}
                 </div>
                 <button
                   type="button"
                   onClick={() => setManualEditor({ mode: 'edit', itemId: item.id })}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-extrabold text-slate-600 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
                 >
                   <Pencil size={13} /> 수정
                 </button>
                 <Link
-                  href={`/app/archive?item=${item.id}`}
-                  className="grid size-7 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-violet-100 hover:text-violet-700"
-                  aria-label={`${item.title} 기록 보기`}
-                  title="변경 기록"
+                  href={`/app/items?detail=${item.id}`}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-violet-100 hover:text-violet-700"
+                  aria-label={`${item.title} 상세 및 기록 보기`}
+                  title="상세와 변경 기록"
                 >
-                  <History size={14} />
+                  <History size={14} /> 상세
                 </Link>
               </div>
             </li>
@@ -190,6 +205,13 @@ export function ItemDirectory() {
           item={editingItem}
           initialLocationId={isCreating ? createLocationId ?? undefined : undefined}
           onClose={closeEditor}
+        />
+      )}
+      {detailItem && (
+        <ItemDetailDialog
+          item={detailItem}
+          onClose={closeDetail}
+          onEdit={() => router.replace(`/app/items?edit=${detailItem.id}`)}
         />
       )}
     </section>
@@ -236,5 +258,5 @@ function getLocationPath(locationId: string, spaces: LocalSpace[]) {
       : undefined
   }
 
-  return path.length > 0 ? `우리 집 > ${path.join(' > ')}` : '삭제되었거나 알 수 없는 공간'
+  return path.length > 0 ? path.join(' > ') : '삭제되었거나 알 수 없는 공간'
 }

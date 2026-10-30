@@ -37,7 +37,7 @@ export function SpaceColorPicker({ locationId, initialColor }: { locationId: str
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
       <Palette size={16} className="text-violet-700" />
-      <span className="text-xs font-extrabold text-slate-700">공간 색상</span>
+      <span className="text-xs font-semibold text-slate-700">공간 색상</span>
       <span
         aria-label="선택한 색상 미리보기"
         className="size-6 rounded-md border border-slate-300 shadow-sm"
@@ -60,7 +60,7 @@ export function SpaceColorPicker({ locationId, initialColor }: { locationId: str
       <button
         type="button"
         onClick={() => void saveColor()}
-        className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-extrabold text-slate-700 hover:bg-violet-100 hover:text-violet-700"
+        className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-violet-100 hover:text-violet-700"
       >
         저장
       </button>

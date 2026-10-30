@@ -20,27 +20,27 @@ export default async function MyPage() {
   const initial = displayName.slice(0, 1)
 
   return (
-    <main className="min-h-dvh bg-[#f8f7ff] px-4 py-6 text-slate-950 sm:px-6 sm:py-8">
+    <main className="min-h-dvh bg-[#f5f8fd] px-4 py-4 text-slate-950 sm:px-4 sm:py-4">
       <section className="mx-auto max-w-3xl">
         <Link href="/app" className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-violet-700">
           <ArrowLeft size={17} />
           홈
         </Link>
 
-        <div className="mt-7">
+        <div className="mt-4">
           <p className="flex items-center gap-2 text-sm font-bold text-violet-600">
             <UserRound size={17} />
             내 계정
           </p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-[-0.05em] sm:text-4xl">마이페이지</h1>
+          <h1 className="mt-2 text-3xl font-semibold tracking-normal sm:text-3xl">마이페이지</h1>
           <p className="mt-3 text-sm leading-6 text-slate-500">
             내 계정 정보와 로그인 설정을 관리합니다.
           </p>
         </div>
 
-        <section className="mt-8 overflow-hidden rounded-3xl border border-violet-100 bg-white shadow-sm">
-          <div className="flex items-center gap-4 bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-6 text-white sm:px-6">
-            <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-white/20 text-xl font-extrabold ring-1 ring-white/30">
+        <section className="mt-8 overflow-hidden rounded-xl border border-violet-100 bg-white shadow-sm">
+          <div className="flex items-center gap-4 bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-4 text-white sm:px-4">
+            <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-white/20 text-xl font-semibold ring-1 ring-white/30">
               {initial}
             </span>
             <span className="min-w-0">
@@ -54,17 +54,17 @@ export default async function MyPage() {
           </div>
         </section>
 
-        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+        <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-4">
           <SectionHeading icon={ShieldCheck} title="로그인 및 보안" description="계정에 접속하는 방법을 관리합니다." />
-          <div className="mt-5 divide-y divide-slate-100 rounded-2xl border border-slate-100">
+          <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-100">
             <SettingRow href="/app/my/password" icon={KeyRound} label="비밀번호" description="현재 비밀번호를 새 비밀번호로 변경" action="변경" />
             <SettingRow href="/app/my/session" icon={ShieldCheck} label="로그인 상태" description="이 기기에서 로그인 유지 여부를 관리" action="변경" />
           </div>
         </section>
 
-        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+        <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-4">
           <SectionHeading icon={Bell} title="알림" description="변경 기록과 초대 알림 설정을 준비하고 있습니다." />
-          <div className="mt-5 rounded-2xl bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-500">
+          <div className="mt-4 rounded-xl bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-500">
             물건 이동, 초대, 공동체 활동 알림은 Home 기능과 함께 다음 단계에서 연결합니다.
           </div>
         </section>
@@ -86,7 +86,7 @@ function SectionHeading({ icon: Icon, title, description }: SectionHeadingProps)
         <Icon size={18} />
       </span>
       <div>
-        <h2 className="font-extrabold text-slate-900">{title}</h2>
+        <h2 className="font-semibold text-slate-900">{title}</h2>
         <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
       </div>
     </div>

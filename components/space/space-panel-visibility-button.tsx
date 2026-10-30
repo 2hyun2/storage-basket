@@ -48,7 +48,7 @@ export function SpacePanelVisibilityButton({
         type="button"
         onClick={() => void togglePanel()}
         disabled={isSaving}
-        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-extrabold text-slate-700 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 disabled:opacity-50"
       >
         {isVisible ? <EyeOff size={16} /> : <Eye size={16} />}
         {isVisible ? '상위 화면에서 이름표 숨기기' : '상위 화면에서 이름표 보이기'}

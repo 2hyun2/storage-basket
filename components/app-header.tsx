@@ -37,10 +37,10 @@ export function AppHeader({ displayName, email }: AppHeaderProps) {
         <Link
           href="/app"
           onClick={() => setIsMenuOpen(false)}
-          className="flex min-w-0 items-center gap-2 font-extrabold tracking-tight text-slate-950"
+          className="flex items-center gap-2 font-bold"
         >
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-violet-600 text-white">
-            <Archive size={18} strokeWidth={2.5} />
+          <span className="flex items-center justify-center size-10 text-violet-700 bg-white rounded-lg">
+              <Archive size={30} strokeWidth={2} />
           </span>
           <span className="truncate">우리집 공간록</span>
         </Link>
@@ -82,7 +82,7 @@ export function AppHeader({ displayName, email }: AppHeaderProps) {
       {isMenuOpen && (
         <div id="main-navigation-menu" className="mx-auto mt-2 max-w-5xl border border-slate-200 bg-white p-2 shadow-xl">
           <div className="border-b border-slate-100 px-3 py-2">
-            <p className="text-sm font-extrabold text-slate-900">{displayName}</p>
+            <p className="text-sm font-semibold text-slate-900">{displayName}</p>
             <p className="mt-0.5 truncate text-xs text-slate-500">{email}</p>
           </div>
           <nav className="mt-1 grid gap-1 sm:grid-cols-2" aria-label="전체 메뉴">

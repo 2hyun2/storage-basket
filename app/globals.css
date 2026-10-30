@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+/* 기존 포인트 유틸리티도 공통 파랑 팔레트를 사용한다. */
+@theme {
+  --color-violet-50: #eff6ff;
+  --color-violet-100: #dbeafe;
+  --color-violet-200: #bfdbfe;
+  --color-violet-300: #93c5fd;
+  --color-violet-400: #60a5fa;
+  --color-violet-500: #3b82f6;
+  --color-violet-600: #1d4ed8;
+  --color-violet-700: #1e40af;
+  --color-violet-800: #1e3a8a;
+  --color-violet-900: #172e62;
+  --color-violet-950: #101f40;
+  --color-fuchsia-500: #3b82f6;
+}
+
 * {
   box-sizing: border-box;
 }

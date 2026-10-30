@@ -258,9 +258,9 @@ export function StructureCreateForm({
   }
 
   return (
-    <div className="space-y-5">
-      <div className="rounded-2xl border border-violet-100 bg-violet-50/60 p-3">
-        <p className="text-sm font-extrabold text-violet-950">이 공간 미리 보기</p>
+    <div className="space-y-4">
+      <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-3">
+        <p className="text-sm font-semibold text-violet-950">이 공간 미리 보기</p>
         <p className="mt-1 text-xs leading-5 text-slate-600">입력값을 바꾸면 저장 전 위치와 크기가 바로 반영됩니다. 이 안의 공간·벽·창문을 함께 보여 주므로 서로 겹치지 않게 확인할 수 있습니다.</p>
       </div>
 
@@ -282,13 +282,13 @@ export function StructureCreateForm({
       />
 
       {structures.length > 0 && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-3">
+        <section className="rounded-xl border border-slate-200 bg-white p-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-extrabold">만들어 둔 벽과 창문</p>
+              <p className="text-sm font-semibold">만들어 둔 벽과 창문</p>
               <p className="mt-0.5 text-xs text-slate-500">선택하면 아래 입력값을 불러와 수정할 수 있습니다.</p>
             </div>
-            <button type="button" onClick={() => startNew()} className="inline-flex items-center gap-1 rounded-xl bg-violet-600 px-3 py-2 text-xs font-extrabold text-white"><Plus size={14} /> 새로 등록</button>
+            <button type="button" onClick={() => startNew()} className="inline-flex items-center gap-1 rounded-xl bg-violet-600 px-3 py-2 text-xs font-semibold text-white"><Plus size={14} /> 새로 등록</button>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {structures.map((structure) => (
@@ -300,10 +300,10 @@ export function StructureCreateForm({
         </section>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-4">
+      <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-extrabold">{editingId ? '벽·창문 고치기' : '벽·창문 추가'}</p>
+            <p className="text-sm font-semibold">{editingId ? '벽·창문 고치기' : '벽·창문 추가'}</p>
             <p className="mt-0.5 text-xs text-slate-500">평면의 X/Y를 기준으로 cm 단위로 배치합니다.</p>
           </div>
           {editingId && <button type="button" onClick={() => startNew()} className="text-xs font-bold text-violet-700">새 등록으로 전환</button>}
@@ -325,8 +325,8 @@ export function StructureCreateForm({
           3D에서 이름표 보이기
         </label>
 
-        <div className="rounded-2xl bg-slate-50 p-3">
-          <p className="text-sm font-extrabold">cm 위치와 크기</p>
+        <div className="rounded-xl bg-slate-50 p-3">
+          <p className="text-sm font-semibold">cm 위치와 크기</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">X는 왼쪽→오른쪽, Y는 위쪽→아래쪽입니다. 창문은 벽의 자식이 아닌 별도 건축 영역이며, 문은 벽 구간을 비워 개구부로 표현합니다.</p>
           <PlanPlacementCanvas
             draft={{
@@ -346,15 +346,15 @@ export function StructureCreateForm({
               sizeY: next.depth,
             })}
           />
-          <p className="mt-3 text-xs font-bold text-slate-600">회색은 기존 공간, 보라·파랑은 벽·창문입니다. 드래그한 뒤 아래에서 1cm 단위로 고칠 수 있습니다.</p>
+          <p className="mt-3 text-xs font-bold text-slate-600">회색은 기존 공간, 보라·파랑은 벽·창문입니다. 드래그는 10cm 격자에 맞춰지며, 아래에서 1cm 단위로 고칠 수 있습니다.</p>
           <div className="mt-4 space-y-3">
             <div className="grid grid-cols-2 gap-2">
-              <p className="col-span-2 text-xs font-extrabold text-slate-700">시작 위치 · X는 왼쪽→오른쪽, Y는 위쪽→아래쪽</p>
+              <p className="col-span-2 text-xs font-semibold text-slate-700">시작 위치 · X는 왼쪽→오른쪽, Y는 위쪽→아래쪽</p>
               <NumberField label={`좌표 X · 최대 ${maxStartX ?? '?'}cm`} value={draft.planX} min={0} max={maxStartX ?? undefined} onChange={(planX) => setDraft({ ...draft, planX })} />
               <NumberField label={`좌표 Y · 최대 ${maxStartY ?? '?'}cm`} value={draft.planY} min={0} max={maxStartY ?? undefined} onChange={(planY) => setDraft({ ...draft, planY })} />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <p className="col-span-2 text-xs font-extrabold text-slate-700">구조물 크기 · 가로는 X, 세로는 Y</p>
+              <p className="col-span-2 text-xs font-semibold text-slate-700">구조물 크기 · 가로는 X, 세로는 Y</p>
               <NumberField label={`가로 X · 최대 ${maxSizeX ?? '?'}cm`} value={draft.sizeX} min={1} max={maxSizeX ?? undefined} onChange={(sizeX) => setDraft({ ...draft, sizeX })} />
               <NumberField label={`세로 Y · 최대 ${maxSizeY ?? '?'}cm`} value={draft.sizeY} min={1} max={maxSizeY ?? undefined} onChange={(sizeY) => setDraft({ ...draft, sizeY })} />
             </div>
@@ -372,13 +372,13 @@ export function StructureCreateForm({
             <button
               type="button"
               onClick={() => void deleteStructure()}
-              className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-extrabold text-rose-700 transition hover:bg-rose-50"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
             >
               <Trash2 size={16} />
               삭제
             </button>
           )}
-          <button className="rounded-2xl bg-violet-600 px-4 py-2.5 text-sm font-extrabold text-white disabled:bg-violet-300" disabled={!layoutId}>
+          <button className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white disabled:bg-violet-300" disabled={!layoutId}>
             {editingId ? `${kind === 'wall' ? '벽' : '창문'} 수정 저장` : `${kind === 'wall' ? '벽' : '창문'} 저장`}
           </button>
         </div>
@@ -388,7 +388,7 @@ export function StructureCreateForm({
 }
 
 function KindButton({ kind, selected, label, icon: Icon, onClick }: { kind: StructureKind; selected: boolean; label: string; icon: typeof PanelTop; onClick: (kind: StructureKind) => void }) {
-  return <button type="button" onClick={() => onClick(kind)} className={`rounded-2xl border p-3 text-left ${selected ? 'border-violet-500 bg-violet-50 text-violet-800' : 'border-slate-200 bg-white text-slate-600'}`}><Icon size={18} /><span className="mt-2 block text-sm font-extrabold">{label}</span></button>
+  return <button type="button" onClick={() => onClick(kind)} className={`rounded-xl border p-3 text-left ${selected ? 'border-violet-500 bg-violet-50 text-violet-800' : 'border-slate-200 bg-white text-slate-600'}`}><Icon size={18} /><span className="mt-2 block text-sm font-semibold">{label}</span></button>
 }
 
 function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder: string }) {

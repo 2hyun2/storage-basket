@@ -70,7 +70,7 @@ export function HomeLayoutSetup() {
 
   if (homeLayout && !isEditing) {
     return (
-      <section className="mt-6 flex flex-col justify-between gap-3 border border-violet-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
+      <section className="mt-4 flex flex-col justify-between gap-3 border border-violet-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
         <div className="flex items-start gap-3">
           <span className="grid size-10 place-items-center rounded-xl bg-violet-100 text-violet-700"><House size={20} /></span>
           <div>
@@ -81,7 +81,7 @@ export function HomeLayoutSetup() {
         <button
           type="button"
           onClick={() => setIsEditing(true)}
-          className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-extrabold text-violet-700 transition hover:bg-violet-50"
+          className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-semibold text-violet-700 transition hover:bg-violet-50"
         >
           <Ruler size={16} />
           집 크기 수정
@@ -91,22 +91,22 @@ export function HomeLayoutSetup() {
   }
 
   return (
-    <section className="mt-6 rounded-3xl border border-violet-200 bg-white p-4 shadow-sm sm:p-6">
+    <section className="mt-4 rounded-xl border border-violet-200 bg-white p-4 shadow-sm sm:p-4">
       <div className="flex items-start gap-3">
         <span className="grid size-10 place-items-center rounded-xl bg-violet-100 text-violet-700"><House size={20} /></span>
         <div>
           <p className="text-sm font-bold text-violet-700">{homeLayout ? '우리 집 크기 수정' : '첫 공간 설계'}</p>
-          <h2 className="mt-1 text-xl font-extrabold">{homeLayout ? '우리 집 전체 크기를 고쳐 주세요' : '우리 집 전체 크기부터 정해 주세요'}</h2>
+          <h2 className="mt-1 text-xl font-semibold">{homeLayout ? '우리 집 전체 크기를 고쳐 주세요' : '우리 집 전체 크기부터 정해 주세요'}</h2>
           <p className="mt-2 text-sm leading-6 text-slate-500">이 값이 모든 방과 집 구조를 그릴 가장 바깥쪽 크기가 됩니다. 이미 배치된 공간이 새 범위를 벗어나면 저장할 수 없습니다.</p>
         </div>
       </div>
-      <form onSubmit={saveHomeLayout} className="mt-5 grid gap-3 sm:grid-cols-3">
+      <form onSubmit={saveHomeLayout} className="mt-4 grid gap-3 sm:grid-cols-3">
         <NumberField label="가로 X (cm)" name="widthCm" placeholder="예: 900" defaultValue={homeLayout?.widthCm} />
         <NumberField label="세로 Y (cm)" name="depthCm" placeholder="예: 600" defaultValue={homeLayout?.depthCm} />
         <NumberField label="공간 높이 Z (cm)" name="heightCm" placeholder="예: 240" defaultValue={homeLayout?.heightCm} />
         <div className="flex gap-2 sm:col-span-3">
-          {homeLayout && <button type="button" onClick={() => { setIsEditing(false); setMessage(null) }} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-extrabold text-slate-600">취소</button>}
-          <button disabled={isSaving} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-extrabold text-white disabled:bg-violet-300"><Ruler size={16} />{isSaving ? '저장 중...' : homeLayout ? '집 크기 저장' : '빈 집 격자 만들기'}</button>
+          {homeLayout && <button type="button" onClick={() => { setIsEditing(false); setMessage(null) }} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600">취소</button>}
+          <button disabled={isSaving} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white disabled:bg-violet-300"><Ruler size={16} />{isSaving ? '저장 중...' : homeLayout ? '집 크기 저장' : '빈 집 격자 만들기'}</button>
         </div>
       </form>
       {message && <p className="mt-3 text-sm font-bold text-rose-700">{message}</p>}

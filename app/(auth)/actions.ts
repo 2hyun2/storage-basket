@@ -20,6 +20,7 @@ const signupSchema = loginSchema.extend({
   displayName: z.string().trim().min(2, '이름은 2자 이상 입력해 주세요.').max(30, '이름은 30자 이하로 입력해 주세요.'),
   password: z.string().min(8, '비밀번호는 8자 이상 입력해 주세요.').max(72, '비밀번호는 72자 이하로 입력해 주세요.'),
   inviteCode: z.string().trim().max(20, '초대 코드를 확인해 주세요.').optional(),
+  inviteConfirmed: z.enum(['yes']).optional(),
 })
 
 const passwordChangeSchema = z.object({
@@ -80,6 +81,10 @@ export async function signup(_: AuthState, formData: FormData): Promise<AuthStat
     const inviteCode = parsed.data.inviteCode?.trim().toUpperCase() || undefined
 
     if (inviteCode) {
+      if (parsed.data.inviteConfirmed !== 'yes') {
+        return { error: '공동체 정보를 확인하고 참여에 동의해 주세요.' }
+      }
+
       const { data: invite, error: inviteError } = await supabase
         .rpc('preview_home_invite', { invite_code_input: inviteCode })
         .maybeSingle()

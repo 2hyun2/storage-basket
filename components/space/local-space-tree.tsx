@@ -50,14 +50,14 @@ export function LocalSpaceTree() {
   }
 
   return (
-    <section className="mt-4 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+    <section className="mt-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div className="flex items-start gap-3">
           <span className="grid size-9 place-items-center rounded-xl bg-violet-100 text-violet-700">
             <Layers3 size={18} />
           </span>
           <div>
-            <h2 className="font-extrabold text-slate-900">우리 집 공간 목록</h2>
+            <h2 className="font-semibold text-slate-900">우리 집 공간 목록</h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">
               텍스트 계층 또는 3D 공간 개요로 확인합니다.
             </p>
@@ -68,7 +68,7 @@ export function LocalSpaceTree() {
             type="button"
             aria-pressed={view === 'tree'}
             onClick={() => setView('tree')}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-extrabold transition ${
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition ${
               view === 'tree'
                 ? 'bg-white text-violet-700 shadow-sm'
                 : 'text-slate-500 hover:text-slate-800'
@@ -81,7 +81,7 @@ export function LocalSpaceTree() {
             type="button"
             aria-pressed={view === 'three'}
             onClick={() => setView('three')}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-extrabold transition ${
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition ${
               view === 'three'
                 ? 'bg-white text-violet-700 shadow-sm'
                 : 'text-slate-500 hover:text-slate-800'
@@ -94,14 +94,14 @@ export function LocalSpaceTree() {
       </div>
 
       {view === 'tree' ? (
-        <div className="mt-4 rounded-2xl bg-slate-50 p-2 sm:p-4">
-        <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-extrabold text-slate-900 shadow-sm">
+        <div className="mt-4 rounded-xl bg-slate-50 p-2 sm:p-4">
+        <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-slate-900 shadow-sm">
           <House size={17} className="text-violet-700" />
           우리 집
         </div>
 
         {rootSpaces.length === 0 ? (
-          <p className="px-3 py-5 text-sm leading-6 text-slate-500">
+          <p className="px-3 py-4 text-sm leading-6 text-slate-500">
             아직 우리 집 아래에 등록된 공간이 없습니다. 거실처럼 첫 공간을 만들어 보세요.
           </p>
         ) : (
@@ -192,7 +192,7 @@ function LocalSpaceTreeNode({
         <Link href={`/app/space/${space.id}`} className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-violet-100 hover:text-violet-700" aria-label={`${space.name} 상세 보기`}>
           <ExternalLink size={15} />
         </Link>
-        {space.mode === 'simple' && <Link href={`/app/space/${space.id}?draw=1`} className="rounded-lg bg-violet-100 px-2 py-1.5 text-[10px] font-extrabold text-violet-700">3D 자리 정하기</Link>}
+        {space.mode === 'simple' && <Link href={`/app/space/${space.id}?draw=1`} className="rounded-lg bg-violet-100 px-2 py-1.5 text-[10px] font-semibold text-violet-700">3D 자리 정하기</Link>}
       </div>
 
       {directItems.length > 0 && (
@@ -240,14 +240,14 @@ function SelectedSpaceSummary({
   const isLeafSpace = childSpaces.length === 0
 
   return (
-    <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3">
-      <p className="text-sm font-extrabold text-violet-950">{space.name}</p>
+    <div className="mt-4 rounded-xl border border-violet-100 bg-violet-50 px-4 py-3">
+      <p className="text-sm font-semibold text-violet-950">{space.name}</p>
       <p className="mt-1 text-xs leading-5 text-violet-800">경로: 우리 집 &gt; {path.join(' > ')}</p>
       <p className="mt-1 text-xs leading-5 text-violet-700">
         등록 방식: {space.mode === 'map' ? '지도 배치 등록' : '간편 등록'}
       </p>
       <div className="mt-3 border-t border-violet-200 pt-3">
-        <p className="text-xs font-extrabold text-violet-950">이 공간의 물건 {items.length}개</p>
+        <p className="text-xs font-semibold text-violet-950">이 공간의 물건 {items.length}개</p>
         {items.length === 0 ? (
           <p className="mt-1 text-xs leading-5 text-violet-700">직접 보관된 물건이 아직 없습니다.</p>
         ) : (
@@ -255,7 +255,7 @@ function SelectedSpaceSummary({
             {items.map((item) => (
               <li key={item.id} className="flex items-center justify-between gap-3 text-xs text-violet-900">
                 <span className="min-w-0 truncate">{item.title}</span>
-                <strong className="shrink-0">{item.quantity}{item.unit}</strong>
+                <strong className="shrink-0">수량: {item.quantity} · 단위: {item.unit || '없음'}</strong>
               </li>
             ))}
           </ul>
@@ -264,7 +264,7 @@ function SelectedSpaceSummary({
 
       <Link
         href={`/app/space/${space.id}`}
-        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-700 px-3 py-2.5 text-sm font-extrabold text-white transition hover:bg-violet-800"
+        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-700 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-800"
       >
         {isLeafSpace ? <Cuboid size={16} /> : <ExternalLink size={16} />}
         {isLeafSpace ? '3D 내부 보기' : '이 공간으로 들어가기'}

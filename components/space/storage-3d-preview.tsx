@@ -69,7 +69,7 @@ export function Storage3dPreview({
   }
 
   return (
-    <div className="mt-6 overflow-hidden rounded-3xl border border-violet-100 bg-slate-950">
+    <div className="mt-4 overflow-hidden rounded-xl border border-violet-100 bg-slate-950">
       <div className="flex items-center justify-between bg-slate-900 px-4 py-2 text-xs font-bold text-white">
         <span>3D 내부 미리보기</span>
         <span className="text-violet-200">호버·클릭 정보 · 드래그 회전</span>
@@ -273,11 +273,11 @@ function SpaceHint({
   const visibleItems = items.slice(0, 3)
 
   return (
-    <aside className="pointer-events-none absolute bottom-3 left-3 w-56 rounded-2xl border border-violet-200/70 bg-slate-950/90 p-3 text-white shadow-xl backdrop-blur">
+    <aside className="pointer-events-none absolute bottom-3 left-3 w-56 rounded-xl border border-violet-200/70 bg-slate-950/90 p-3 text-white shadow-xl backdrop-blur">
       <p className="text-xs font-bold text-violet-200">
         {isPinned ? '선택됨' : '공간 미리보기'}
       </p>
-      <p className="mt-1 text-sm font-extrabold">{spaceName}</p>
+      <p className="mt-1 text-sm font-semibold">{spaceName}</p>
       {highlightedObject && (
         <p className="mt-1 text-xs text-sky-200">가리킨 블록: {highlightedObject}</p>
       )}
@@ -288,7 +288,7 @@ function SpaceHint({
             {visibleItems.map((item) => (
               <li key={item.title} className="flex justify-between gap-2">
                 <span className="truncate">{item.title}</span>
-                <strong className="shrink-0">{item.quantity}{item.unit ?? ''}</strong>
+                <strong className="shrink-0">수량: {item.quantity} · 단위: {item.unit || '없음'}</strong>
               </li>
             ))}
           </ul>

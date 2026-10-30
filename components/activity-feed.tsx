@@ -73,10 +73,9 @@ export function ActivityFeed() {
   })
 
   const events = activityQuery.data ?? []
-  const visibleEvents = useMemo(
-    () => filter === 'all' ? events : events.filter((event) => event.entityType === filter),
-    [events, filter],
-  )
+  const visibleEvents = filter === 'all'
+    ? events
+    : events.filter((event) => event.entityType === filter)
   const memberNames = useMemo(
     () => new Map(members.map((member) => [member.userId, member.displayName])),
     [members],
@@ -90,10 +89,10 @@ export function ActivityFeed() {
         : '공동체 전체 기록'
 
   return (
-    <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+    <section className="mt-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h2 className="flex items-center gap-2 font-extrabold text-slate-900"><History size={18} className="text-violet-700" /> {title}</h2>
+          <h2 className="flex items-center gap-2 font-semibold text-slate-900"><History size={18} className="text-violet-700" /> {title}</h2>
           <p className="mt-1 text-sm leading-6 text-slate-500">최근 150건을 최신순으로 보여 줍니다. 과거 위치와 이름은 당시 값으로 남습니다.</p>
         </div>
         {!focusedEntityId && (
@@ -107,17 +106,17 @@ export function ActivityFeed() {
       </div>
 
       {activityQuery.isLoading ? (
-        <p className="mt-5 rounded-2xl bg-slate-50 px-4 py-5 text-sm font-bold text-slate-500">기록을 불러오는 중입니다.</p>
+        <p className="mt-4 rounded-xl bg-slate-50 px-4 py-4 text-sm font-bold text-slate-500">기록을 불러오는 중입니다.</p>
       ) : activityQuery.error ? (
-        <p role="alert" className="mt-5 rounded-2xl bg-rose-50 px-4 py-5 text-sm font-bold text-rose-700">기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>
+        <p role="alert" className="mt-4 rounded-xl bg-rose-50 px-4 py-4 text-sm font-bold text-rose-700">기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>
       ) : visibleEvents.length === 0 ? (
-        <div className="mt-5 grid place-items-center rounded-2xl bg-slate-50 px-4 py-10 text-center">
+        <div className="mt-4 grid place-items-center rounded-xl bg-slate-50 px-4 py-10 text-center">
           <History size={25} className="text-slate-400" />
           <p className="mt-3 text-sm font-bold text-slate-700">아직 남은 기록이 없습니다.</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">이제부터 물건, 공간, 3D 구조물을 바꾸면 여기에 기록됩니다.</p>
         </div>
       ) : (
-        <ul className="mt-5 divide-y divide-slate-100">
+        <ul className="mt-4 divide-y divide-slate-100">
           {visibleEvents.map((event) => {
             const description = describeActivity(event)
             const actor = event.actorId ? memberNames.get(event.actorId) ?? '구성원' : '시스템'
@@ -143,7 +142,7 @@ export function ActivityFeed() {
 
 function FilterButton({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} aria-pressed={selected} className={`rounded-full px-3 py-1.5 text-xs font-extrabold transition ${selected ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-violet-100 hover:text-violet-700'}`}>
+    <button type="button" onClick={onClick} aria-pressed={selected} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${selected ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-violet-100 hover:text-violet-700'}`}>
       {label}
     </button>
   )

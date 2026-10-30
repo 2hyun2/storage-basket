@@ -19,6 +19,7 @@ const LAST_LOGIN_EMAIL_KEY = 'storage-basket:last-login-email:v1'
 type AuthFormProps = {
   mode: 'login' | 'signup'
   nextPath?: string
+  initialInviteCode?: string
 }
 
 type InvitePreview = {
@@ -26,7 +27,7 @@ type InvitePreview = {
   owner_name: string
 }
 
-export function AuthForm({ mode, nextPath }: AuthFormProps) {
+export function AuthForm({ mode, nextPath, initialInviteCode = '' }: AuthFormProps) {
   const action = mode === 'login' ? login : signup
   const [state, formAction, pending] = useActionState(action, initialState)
   const isLogin = mode === 'login'
@@ -37,13 +38,15 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
   )
   const [editedEmail, setEditedEmail] = useState<string | null>(null)
   const [rememberEmailChoice, setRememberEmailChoice] = useState<boolean | null>(null)
-  const [inviteCode, setInviteCode] = useState('')
+  const [inviteCode, setInviteCode] = useState(initialInviteCode.toUpperCase())
   const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null)
   const [inviteMessage, setInviteMessage] = useState<string | null>(null)
   const [isCheckingInvite, setIsCheckingInvite] = useState(false)
+  const [isInviteConfirmed, setIsInviteConfirmed] = useState(false)
   const passwordInputRef = useRef<HTMLInputElement>(null)
   const email = editedEmail ?? (isLogin ? storedEmail : '')
   const rememberEmail = rememberEmailChoice ?? Boolean(storedEmail)
+  const requiresInviteConfirmation = !isLogin && Boolean(inviteCode.trim()) && !isInviteConfirmed
 
   useEffect(() => {
     if (isLogin && state.error) {
@@ -73,15 +76,17 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
   }
 
   async function checkInviteCode() {
-    const normalizedCode = inviteCode.trim().toUpperCase()
+    const codeToCheck = inviteCode
+    const normalizedCode = codeToCheck.trim().toUpperCase()
     if (!normalizedCode) {
       setInvitePreview(null)
       setInviteMessage('초대 코드를 입력해 주세요.')
-      return
+      return false
     }
 
     setIsCheckingInvite(true)
     setInviteMessage(null)
+    setIsInviteConfirmed(false)
     const { data, error } = await createClient()
       .rpc('preview_home_invite', { invite_code_input: normalizedCode })
       .maybeSingle<InvitePreview>()
@@ -90,11 +95,12 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
     if (error || !data) {
       setInvitePreview(null)
       setInviteMessage('코드를 찾지 못했습니다. 공동체 대표에게 다시 확인해 주세요.')
-      return
+      return false
     }
 
     setInviteCode(normalizedCode)
     setInvitePreview(data)
+    return true
   }
 
   return (
@@ -102,13 +108,14 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
       <input type="hidden" name="next" value={nextPath ?? ''} />
       {!isLogin && (
         <>
+          <input type="hidden" name="inviteConfirmed" value={isInviteConfirmed ? 'yes' : ''} />
           <Field
             label="이름"
             name="displayName"
             placeholder="표시할 이름"
             autoComplete="name"
           />
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <label className="block">
               <span className="mb-1.5 block text-sm font-bold text-slate-700">초대 코드가 있으신가요?</span>
               <span className="block text-xs leading-5 text-slate-500">코드를 확인하면 새 개인 공간 대신 기존 공동체에 바로 참여합니다.</span>
@@ -120,12 +127,13 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
                     setInviteCode(event.target.value.toUpperCase())
                     setInvitePreview(null)
                     setInviteMessage(null)
+                    setIsInviteConfirmed(false)
                   }}
                   placeholder="예: A1B2C3D4"
                   autoComplete="off"
                   className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold tracking-[0.12em] outline-none focus:border-violet-500"
                 />
-                <button type="button" onClick={() => void checkInviteCode()} disabled={isCheckingInvite} className="shrink-0 rounded-xl border border-violet-200 bg-white px-3 text-sm font-extrabold text-violet-700 hover:bg-violet-50 disabled:opacity-60">
+                <button type="button" onClick={() => void checkInviteCode()} disabled={isCheckingInvite} className="shrink-0 rounded-xl border border-violet-200 bg-white px-3 text-sm font-semibold text-violet-700 hover:bg-violet-50 disabled:opacity-60">
                   {isCheckingInvite ? '확인 중' : '코드 확인'}
                 </button>
               </span>
@@ -135,6 +143,15 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
                 <strong>{invitePreview.home_name}</strong>
                 <span className="ml-1">· 대표 {invitePreview.owner_name}</span>
                 <p className="mt-1 text-xs text-violet-700">이 공동체에 참여한 뒤 공간과 물건을 함께 볼 수 있어요.</p>
+                <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg bg-white/70 px-2.5 py-2 text-xs font-bold text-violet-950">
+                  <input
+                    type="checkbox"
+                    checked={isInviteConfirmed}
+                    onChange={(event) => setIsInviteConfirmed(event.target.checked)}
+                    className="mt-0.5 size-4"
+                  />
+                  <span>위 공동체에 구성원으로 참여하는 것을 확인했습니다.</span>
+                </label>
               </div>
             )}
             {inviteMessage && <p className="mt-2 text-xs font-bold text-rose-700">{inviteMessage}</p>}
@@ -159,7 +176,7 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
         inputRef={passwordInputRef}
       />
       {isLogin && (
-        <div className="space-y-2 rounded-2xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
+        <div className="space-y-2 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
           <CheckField
             name="rememberEmail"
             checked={rememberEmail}
@@ -188,10 +205,10 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
         </p>
       )}
       <button
-        disabled={pending}
-        className="w-full rounded-2xl bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60"
+        disabled={pending || requiresInviteConfirmation}
+        className="w-full rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60"
       >
-        {pending ? '처리 중…' : isLogin ? '로그인' : '우리집 공간록 만들기'}
+        {pending ? '처리 중…' : isLogin ? '로그인' : invitePreview ? '공동체 참여하고 가입하기' : '우리집 공간록 만들기'}
       </button>
       <p className="text-center text-sm text-slate-500">
         {isLogin ? '처음이신가요? ' : '이미 계정이 있나요? '}

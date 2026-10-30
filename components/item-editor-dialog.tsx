@@ -94,7 +94,7 @@ export function ItemEditorDialog({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-2 sm:p-4" role="dialog" aria-modal="true" aria-label={item ? '물건 수정' : '물건 등록'}>
-      <form onSubmit={saveItem} className="max-h-[calc(100dvh-1rem)] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-4 shadow-2xl sm:p-5">
+      <form onSubmit={saveItem} className="max-h-[calc(100dvh-1rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-4 shadow-2xl sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-sky-100 text-sky-700">
@@ -102,7 +102,7 @@ export function ItemEditorDialog({
             </span>
             <div>
               <p className="text-sm font-bold text-sky-700">물건 기록</p>
-              <h2 className="mt-1 text-xl font-extrabold text-slate-950">{item ? '물건 정보 수정' : '물건 등록'}</h2>
+              <h2 className="mt-1 text-xl font-semibold text-slate-950">{item ? '물건 정보 수정' : '물건 등록'}</h2>
             </div>
           </div>
           <button type="button" onClick={onClose} className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900" aria-label="물건 등록 창 닫기">
@@ -110,11 +110,11 @@ export function ItemEditorDialog({
           </button>
         </div>
 
-        <p className="mt-4 rounded-2xl bg-sky-50 px-3 py-2 text-sm leading-6 text-sky-900">
+        <p className="mt-4 rounded-xl bg-sky-50 px-3 py-2 text-sm leading-6 text-sky-900">
           물건은 3D 좌표 없이 보관 공간에만 연결됩니다. 위치를 바꾸면 물건 이동 기록으로 사용할 수 있습니다.
         </p>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <Field label="물건 이름" value={title} onChange={setTitle} placeholder="예: AA 건전지" required className="sm:col-span-2" />
           <label className="block sm:col-span-2">
             <span className="mb-1.5 block text-sm font-bold text-slate-700">보관 공간</span>
@@ -162,9 +162,9 @@ export function ItemEditorDialog({
 
         {message && <p role="alert" className="mt-4 rounded-xl bg-rose-50 px-3 py-2 text-sm font-bold text-rose-700">{message}</p>}
 
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-extrabold text-slate-600 transition hover:bg-slate-50">취소</button>
-          <button disabled={isSaving || locations.length === 0} className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-extrabold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-violet-300">
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">취소</button>
+          <button disabled={isSaving || locations.length === 0} className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-violet-300">
             {isSaving ? '저장 중...' : item ? '수정 저장' : '등록'}
           </button>
         </div>
@@ -226,7 +226,7 @@ function buildLocationOptions(spaces: Array<{ id: string; name: string; parentId
 
     return {
       id: space.id,
-      label: `우리 집 › ${names.join(' › ')}`,
+      label: names.join(' › '),
     }
   }).sort((left, right) => left.label.localeCompare(right.label, 'ko'))
 }

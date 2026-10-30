@@ -16,6 +16,7 @@ import { DeleteItemButton } from '@/components/space/delete-item-button'
 import { DeleteSpaceButton } from '@/components/space/delete-space-button'
 import { SpacePanelVisibilityButton } from '@/components/space/space-panel-visibility-button'
 import { SpaceColorPicker } from '@/components/space/space-color-picker'
+import { SpaceNameEditor } from '@/components/space/space-name-editor'
 import {
   invalidateHomeInventory,
   type HomeLayout,
@@ -107,8 +108,8 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
 
   if (error || !location) {
     return (
-      <main className="min-h-dvh bg-[#f8f7ff] px-2 py-4 text-slate-950 sm:px-4 sm:py-4">
-        <section className="mx-auto max-w-5xl rounded-2xl border border-rose-200 bg-white p-4 text-sm text-rose-700">
+      <main className="min-h-dvh bg-[#f5f8fd] px-2 py-4 text-slate-950 sm:px-4 sm:py-4">
+        <section className="mx-auto max-w-5xl rounded-xl border border-rose-200 bg-white p-4 text-sm text-rose-700">
           {error ? '공간 데이터를 불러오지 못했습니다. 잠시 뒤 다시 시도해 주세요.' : '찾을 수 없거나 권한이 없는 공간입니다.'}
         </section>
       </main>
@@ -144,7 +145,7 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
   const spacePath = getSpacePath(location.id, spaces)
 
   return (
-    <main className="min-h-dvh bg-[#f8f7ff] px-2 py-4 text-slate-950 sm:px-4 sm:py-4">
+    <main className="min-h-dvh bg-[#f5f8fd] px-2 py-4 text-slate-950 sm:px-4 sm:py-4">
       <section className="mx-auto max-w-5xl">
         <Link
           href={location.parentId ? `/app/space/${location.parentId}` : '/app/space'}
@@ -167,43 +168,44 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
 
         <SpacePathNavigation path={spacePath} />
 
-        <header className="mt-5 flex items-center gap-3">
+        <header className="mt-4 flex items-center gap-3">
           <span className="grid size-10 place-items-center rounded-xl bg-violet-100 text-violet-700">
             <Box size={20} />
           </span>
           <div>
             <p className="text-sm font-bold text-violet-700">공간 상세</p>
-            <h1 className="mt-1 text-3xl font-extrabold">{location.name}</h1>
+            <h1 className="mt-1 text-3xl font-semibold">{location.name}</h1>
           </div>
         </header>
 
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
             href={`/app/space/create?inside=${location.id}`}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-3 py-2 text-sm font-extrabold text-white transition hover:bg-violet-700"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-violet-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-violet-700"
           >
             <Plus size={16} />
             이 안에 공간 만들기
           </Link>
           <Link
             href={`/app/items?create=1&location=${location.id}`}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-extrabold text-sky-700 transition hover:bg-sky-50"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-50"
           >
             <Package size={16} />
             이곳에 물건 등록
           </Link>
+          <SpaceNameEditor locationId={location.id} initialName={location.name} />
           <SpaceColorPicker locationId={location.id} initialColor={location.colorHex} />
           <SpacePanelVisibilityButton locationId={location.id} initialVisibility={location.isPanelVisible !== false} />
           <Link
             href={`/app/space/${location.id}/structure/create`}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-extrabold text-violet-700 transition hover:bg-violet-50"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200 bg-white px-3 py-2 text-sm font-semibold text-violet-700 transition hover:bg-violet-50"
           >
             <Construction size={16} />
             벽·창문 설계
           </Link>
           <Link
             href={`/app/archive?space=${location.id}`}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-extrabold text-slate-700 transition hover:bg-slate-50"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
           >
             <History size={16} />
             변경 기록
@@ -212,7 +214,7 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
 
         <section className="mt-4 grid gap-3 border border-slate-200 bg-white p-3 text-sm sm:grid-cols-[1fr_auto] sm:items-center">
           <div>
-            <p className="font-extrabold text-slate-900">공간 정보</p>
+            <p className="font-semibold text-slate-900">공간 정보</p>
             <p className="mt-1 leading-6 text-slate-500">
               {sceneLayout
                 ? `가로 X ${sceneLayout.widthCm}cm · 세로 Y ${sceneLayout.depthCm}cm${sceneLayout.heightCm ? ` · 높이 ${sceneLayout.heightCm}cm` : ''}`
@@ -221,7 +223,7 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
           </div>
           <Link
             href={`/app/space/${location.id}?draw=1`}
-            className="inline-flex items-center justify-center rounded-xl bg-violet-600 px-3 py-2 text-sm font-extrabold text-white transition hover:bg-violet-700"
+            className="inline-flex items-center justify-center rounded-xl bg-violet-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-violet-700"
           >
             {editablePlacement ? '3D 수정' : '3D 자리 정하기'}
           </Link>
@@ -249,7 +251,7 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
           onStructureSelect={(structure) => router.push(`/app/space/${location.id}/structure/create?edit=${structure.id}`)}
         />
 
-        <section className="mt-6 grid gap-5 lg:grid-cols-3">
+        <section className="mt-4 grid gap-4 lg:grid-cols-3">
           <ContentList title="안에 있는 공간" empty="아직 안에 만든 공간이 없습니다." hasContent={children.length > 0}>
             {children.map((child) => (
               <Link
@@ -271,7 +273,7 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
                   {item.title}
                 </span>
                 <span className="flex items-center gap-2">
-                  <strong>{item.quantity}{item.unit}</strong>
+                  <span className="text-xs font-bold text-slate-600">수량: {item.quantity} · 단위: {item.unit || '없음'}</span>
                   <Link
                     href={`/app/items?edit=${item.id}`}
                     className="grid size-7 place-items-center rounded-lg text-slate-400 transition hover:bg-violet-100 hover:text-violet-700"
@@ -296,13 +298,13 @@ export function SpaceDetailClient({ locationId, draw }: { locationId: string; dr
 
           <ContentList title="이 공간의 벽·창문" empty="이 공간에 만든 벽이나 창문이 없습니다." hasContent={sceneStructures.length > 0}>
             {sceneStructures.map((structure) => (
-              <div key={structure.id} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-sm">
+              <Link key={structure.id} href={`/app/space/${location.id}/structure/create?edit=${structure.id}`} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-sm transition hover:bg-violet-50">
                 <span className="flex min-w-0 items-center gap-2 font-bold">
                   <Construction size={16} className={structure.kind === 'window' ? 'text-sky-700' : 'text-stone-700'} />
                   {structure.name}
                 </span>
-                <strong>{structure.kind === 'window' ? '창문' : '벽'}</strong>
-              </div>
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600"><Pencil size={14} /> {structure.kind === 'window' ? '창문 수정' : '벽 수정'}</span>
+              </Link>
             ))}
           </ContentList>
         </section>
@@ -393,7 +395,7 @@ function toSceneLayout(layout: SceneLayout | HomeLayout | null): SceneLayoutData
 
 function SpacePathNavigation({ path }: { path: Array<{ id: string; name: string; parentId: string | null }> }) {
   return (
-    <nav aria-label="현재 공간 경로" className="mt-5 flex flex-wrap items-center gap-1 rounded-2xl border border-violet-100 bg-white p-2 shadow-sm">
+    <nav aria-label="현재 공간 경로" className="mt-4 flex flex-wrap items-center gap-1 rounded-xl border border-violet-100 bg-white p-2 shadow-sm">
       <Link href="/app/space" className="inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-sm font-bold text-slate-600 transition hover:bg-violet-50 hover:text-violet-700">
         <House size={15} />
         우리 집
@@ -404,7 +406,7 @@ function SpacePathNavigation({ path }: { path: Array<{ id: string; name: string;
           <div key={space.id} className="flex items-center gap-1">
             <ChevronRight size={15} className="text-slate-300" />
             {isCurrentSpace ? (
-              <span aria-current="page" className="rounded-xl bg-violet-600 px-2.5 py-1.5 text-sm font-extrabold text-white">{space.name}</span>
+              <span aria-current="page" className="rounded-xl bg-violet-600 px-2.5 py-1.5 text-sm font-semibold text-white">{space.name}</span>
             ) : (
               <Link href={`/app/space/${space.id}`} className="rounded-xl px-2.5 py-1.5 text-sm font-bold text-slate-600 transition hover:bg-violet-50 hover:text-violet-700">{space.name}</Link>
             )}
@@ -417,8 +419,8 @@ function SpacePathNavigation({ path }: { path: Array<{ id: string; name: string;
 
 function ContentList({ title, empty, hasContent, children }: { title: string; empty: string; hasContent: boolean; children: React.ReactNode }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-      <h2 className="font-extrabold">{title}</h2>
+    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+      <h2 className="font-semibold">{title}</h2>
       <div className="mt-4 space-y-2">{hasContent ? children : <p className="text-sm text-slate-500">{empty}</p>}</div>
     </div>
   )
@@ -426,8 +428,8 @@ function ContentList({ title, empty, hasContent, children }: { title: string; em
 
 function SpaceDetailLoading() {
   return (
-    <main className="min-h-dvh bg-[#f8f7ff] px-2 py-4 text-slate-950 sm:px-4 sm:py-4">
-      <section className="mx-auto max-w-5xl animate-pulse rounded-2xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-500">
+    <main className="min-h-dvh bg-[#f5f8fd] px-2 py-4 text-slate-950 sm:px-4 sm:py-4">
+      <section className="mx-auto max-w-5xl animate-pulse rounded-xl border border-slate-200 bg-white p-4 text-sm font-bold text-slate-500">
         공간 데이터를 불러오는 중입니다.
       </section>
     </main>

@@ -8,7 +8,7 @@ type PlanMapProps = {
 
 export function PlanMap({ layout }: PlanMapProps) {
   return (
-    <div className="overflow-hidden rounded-3xl border border-violet-100 bg-white p-2 shadow-sm sm:p-4">
+    <div className="overflow-hidden rounded-xl border border-violet-100 bg-white p-2 shadow-sm sm:p-4">
       <div className="mb-4 flex items-center justify-between gap-4 px-1">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-500">
@@ -21,7 +21,7 @@ export function PlanMap({ layout }: PlanMapProps) {
         </span>
       </div>
 
-      <div className="relative aspect-[5/3] min-h-72 overflow-hidden rounded-2xl border-2 border-slate-200 bg-slate-50 p-1">
+      <div className="relative aspect-[5/3] min-h-72 overflow-hidden rounded-xl border-2 border-slate-200 bg-slate-50 p-1">
         <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(#e2e8f0_1px,transparent_1px),linear-gradient(90deg,#e2e8f0_1px,transparent_1px)] [background-size:20px_20px]" />
         {layout.nodes.map((node) => (
           <LocationTile key={node.id} node={node} grid={layout.grid} />
@@ -59,7 +59,7 @@ function LocationTile({ node, grid }: LocationTileProps) {
         )}
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-sm font-extrabold tracking-tight sm:text-base">{node.name}</span>
+        <span className="block truncate text-sm font-semibold tracking-tight sm:text-base">{node.name}</span>
         {node.itemCount !== undefined && (
           <span className="mt-0.5 block text-[11px] font-medium text-white/80 sm:text-xs">
             물건 {node.itemCount}개

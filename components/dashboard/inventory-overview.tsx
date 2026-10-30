@@ -7,6 +7,7 @@ import {
   Box,
   Layers3,
   Map,
+  MapPinned,
   Package,
   Plus,
   Search,
@@ -60,26 +61,26 @@ export function InventoryOverview({ displayName }: InventoryOverviewProps) {
   const totalQuantity = items.reduce((total, item) => total + item.quantity, 0)
 
   return (
-    <main className="min-h-dvh bg-[#f8f7ff] px-2 py-4 text-slate-950 sm:px-4 sm:py-4">
+    <main className="min-h-dvh bg-[#f5f8fd] px-2 py-4 text-slate-950 sm:px-4 sm:py-4">
       <section className="mx-auto max-w-5xl">
         <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <p className="text-sm font-bold text-violet-600">{displayName}님의 Home</p>
-            <h1 className="mt-1 text-3xl font-extrabold tracking-[-0.05em] sm:text-4xl">수납 현황</h1>
+            <h1 className="mt-1 text-3xl font-semibold tracking-normal sm:text-3xl">수납 현황</h1>
           </div>
           <Link
-            href="/app/space/create"
+            href="/app/register"
             className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-violet-700"
           >
             <Plus size={16} />
-            새로 등록
+            등록
           </Link>
         </header>
 
-        <section className="mt-4 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+        <section className="mt-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
-              <h2 className="text-lg font-extrabold tracking-tight text-slate-900">물건 검색하기</h2>
+              <h2 className="text-lg font-semibold tracking-tight text-slate-900">물건 검색하기</h2>
               <p className="mt-1 text-sm text-slate-500">물건명, 분류, 보관 위치로 바로 찾습니다.</p>
             </div>
             <Link href="/app/items" className="inline-flex items-center gap-1 text-sm font-bold text-violet-700 hover:text-violet-900">
@@ -88,14 +89,14 @@ export function InventoryOverview({ displayName }: InventoryOverviewProps) {
             </Link>
           </div>
 
-          <label className="relative mt-5 block">
+          <label className="relative mt-4 block">
             <span className="sr-only">메인 물건 검색</span>
             <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="예: 건전지, 부엌, 오른쪽 서랍"
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:bg-white focus:ring-4 focus:ring-violet-100"
             />
           </label>
 
@@ -122,7 +123,7 @@ export function InventoryOverview({ displayName }: InventoryOverviewProps) {
           />
         </section>
 
-        <section className="mt-6 grid gap-3 sm:grid-cols-3">
+        <section className="mt-4 grid gap-3 sm:grid-cols-3">
           <StatCard icon={Layers3} label="등록된 공간" value={`${spaces.length}곳`} tone="violet" />
           <StatCard icon={Package} label="물건 종류" value={`${items.length}개`} tone="sky" />
           <StatCard icon={Box} label="물건 수량 합계" value={`${totalQuantity}개`} tone="amber" />
@@ -158,12 +159,12 @@ function StatCard({ icon: Icon, label, value, tone }: StatCardProps) {
   }[tone]
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <span className={`grid size-9 place-items-center rounded-xl ${toneClassName}`}>
         <Icon size={18} />
       </span>
       <p className="mt-4 text-sm font-bold text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-extrabold tracking-tight text-slate-950">{value}</p>
+      <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{value}</p>
     </div>
   )
 }
@@ -200,7 +201,7 @@ type QuickSearchResultsProps = {
 function QuickSearchResults({ items, hasItems, hasSearchCondition }: QuickSearchResultsProps) {
   if (!hasItems) {
     return (
-      <p className="mt-5 rounded-2xl bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-500">
+      <p className="mt-4 rounded-xl bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-500">
         아직 등록한 물건이 없습니다. 공간 화면에서 물건 더미를 채우거나 새 물건을 등록해 보세요.
       </p>
     )
@@ -208,26 +209,29 @@ function QuickSearchResults({ items, hasItems, hasSearchCondition }: QuickSearch
 
   if (items.length === 0) {
     return (
-      <p className="mt-5 rounded-2xl bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-500">
+      <p className="mt-4 rounded-xl bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-500">
         {hasSearchCondition ? '검색 조건에 맞는 물건이 없습니다.' : '표시할 물건이 없습니다.'}
       </p>
     )
   }
 
   return (
-    <ul className="mt-5 divide-y divide-slate-100">
+    <ul className="mt-4 divide-y divide-slate-100">
       {items.map((item) => (
         <li key={item.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-          <Link href={`/app/items?edit=${item.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl transition hover:bg-slate-50">
+          <Link href={`/app/items?detail=${item.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl transition hover:bg-slate-50">
             <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-700">
               <Package size={17} />
             </span>
             <span className="min-w-0">
               <strong className="block truncate text-sm text-slate-900">{item.title}</strong>
-              <span className="block truncate text-xs text-slate-500">{item.locationPath}</span>
+              <span className="flex min-w-0 items-center gap-1 truncate text-xs font-bold text-violet-700"><MapPinned size={12} className="shrink-0" />{item.locationPath}</span>
             </span>
           </Link>
-          <strong className="shrink-0 text-sm text-slate-700">{item.quantity}{item.unit}</strong>
+          <span className="flex shrink-0 flex-wrap justify-end gap-x-2 text-xs font-bold text-slate-600">
+            <span>수량: {item.quantity}</span>
+            <span>단위: {item.unit || '없음'}</span>
+          </span>
         </li>
       ))}
     </ul>
@@ -248,10 +252,10 @@ function Home3dPreview({
   structures: SceneStructure[]
 }) {
   return (
-    <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+    <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-extrabold text-slate-900">우리 집 공간</p>
+          <p className="text-sm font-semibold text-slate-900">우리 집 공간</p>
           <p className="mt-1 text-sm text-slate-500">평면도에서 보관 위치를 따라 들어갑니다.</p>
         </div>
         <Map size={20} className="text-violet-700" />
@@ -266,7 +270,7 @@ function Home3dPreview({
           compact
         />
       ) : (
-        <div className="mt-5 grid aspect-[16/7] place-items-center rounded-2xl bg-slate-100 p-3 text-center text-sm font-bold text-slate-500">
+        <div className="mt-4 grid aspect-[16/7] place-items-center rounded-xl bg-slate-100 p-3 text-center text-sm font-bold text-slate-500">
           공간을 등록하면 이곳에 3D 집 구조가 표시됩니다.
         </div>
       )}
@@ -280,10 +284,10 @@ function Home3dPreview({
 
 function QuickLinks() {
   return (
-    <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-      <p className="text-sm font-extrabold text-slate-900">바로가기</p>
+    <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+      <p className="text-sm font-semibold text-slate-900">바로가기</p>
       <div className="mt-4 space-y-3">
-        <Link href="/app/space" className="flex items-center gap-3 rounded-2xl bg-violet-50 p-4 transition hover:bg-violet-100">
+        <Link href="/app/space" className="flex items-center gap-3 rounded-xl bg-violet-50 p-4 transition hover:bg-violet-100">
           <span className="grid size-9 place-items-center rounded-xl bg-violet-600 text-white"><Map size={18} /></span>
           <span className="min-w-0 flex-1">
             <strong className="block text-sm text-violet-950">공간 지도와 노드</strong>
@@ -291,7 +295,7 @@ function QuickLinks() {
           </span>
           <ArrowRight size={17} className="shrink-0 text-violet-700" />
         </Link>
-        <Link href="/app/items" className="flex items-center gap-3 rounded-2xl bg-sky-50 p-4 transition hover:bg-sky-100">
+        <Link href="/app/items" className="flex items-center gap-3 rounded-xl bg-sky-50 p-4 transition hover:bg-sky-100">
           <span className="grid size-9 place-items-center rounded-xl bg-sky-600 text-white"><Package size={18} /></span>
           <span className="min-w-0 flex-1">
             <strong className="block text-sm text-sky-950">전체 물건</strong>
@@ -316,5 +320,5 @@ function getLocationPath(locationId: string, spaces: LocalSpace[]) {
       : undefined
   }
 
-  return path.length > 0 ? `우리 집 > ${path.join(' > ')}` : '삭제되었거나 알 수 없는 공간'
+  return path.length > 0 ? path.join(' > ') : '삭제되었거나 알 수 없는 공간'
 }
