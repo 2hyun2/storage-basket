@@ -3,8 +3,8 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import {
-  Archive,
   History,
+  BookOpen,
   House,
   LogOut,
   Menu,
@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react'
 import { logout } from '@/app/(auth)/actions'
+import { BrandIcon } from '@/components/brand-icon'
 
 type AppHeaderProps = {
   displayName: string
@@ -26,6 +27,7 @@ const navigationItems = [
   { href: '/app/community', label: '공동체', description: '구성원과 초대 코드 관리', icon: UsersRound },
   { href: '/app/archive', label: '변경 기록', description: '물건과 공간의 변경 내역', icon: History },
   { href: '/app/my', label: '마이페이지', description: '계정과 로그인 설정', icon: UserRound },
+  { href: '/guide', label: '사용 가이드', description: '공간과 물건 기록하는 방법', icon: BookOpen },
 ]
 
 export function AppHeader({ displayName, email }: AppHeaderProps) {
@@ -40,7 +42,7 @@ export function AppHeader({ displayName, email }: AppHeaderProps) {
           className="flex items-center gap-2 font-bold"
         >
           <span className="flex items-center justify-center size-10 text-violet-700 bg-white rounded-lg">
-              <Archive size={30} strokeWidth={2} />
+              <BrandIcon size={30} />
           </span>
           <span className="truncate">우리집 공간록</span>
         </Link>

@@ -1,5 +1,4 @@
 import {
-  Archive,
   Battery,
   Box,
   Cuboid,
@@ -10,6 +9,8 @@ import {
 } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { LandingHomeDemo } from '@/components/landing-home-demo'
+import { BrandIcon } from '@/components/brand-icon'
+import { AppFooter } from '@/components/app-footer'
 import { createClient } from '@/lib/supabase/server'
 
 type Feature = {
@@ -49,6 +50,7 @@ export default async function HomePage() {
   }
 
   return (
+    <>
     <main className="min-h-dvh overflow-x-hidden bg-[#f5f8fd] text-slate-950">
       <section className="relative isolate overflow-hidden bg-[#172e62] p-4 sm:p-6 text-white">
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
@@ -60,7 +62,7 @@ export default async function HomePage() {
         <nav className="mx-auto flex max-w-[1440px] items-center justify-between font-bold">
           <a href="#top" className="flex items-center gap-2 " aria-label="우리집 공간록 첫 화면">
             <span className="flex items-center justify-center size-10 text-violet-700 bg-white rounded-lg">
-              <Archive size={30} strokeWidth={2} />
+              <BrandIcon size={30} />
             </span>
             <span>우리집 공간록</span>
           </a>
@@ -78,7 +80,7 @@ export default async function HomePage() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <a href="/signup" className="text-xl leading-none text-violet-600 font-medium bg-white border border-violet-50 p-3 rounded-xl">우리집 공간록 만들기</a>
-            <a href="#features" className="text-xl leading-none font-medium border border-violet-50 p-3 rounded-xl">어떻게 쓰나요?</a>
+            <a href="/guide" className="text-xl leading-none font-medium border border-violet-50 p-3 rounded-xl">사용 가이드</a>
           </div>
 
           <div className="mt-16 grid overflow-hidden rounded-xl border border-white/15 bg-white shadow-2xl shadow-black/30 md:grid-cols-[minmax(0,1.4fr)_minmax(280px,.8fr)]">
@@ -88,7 +90,7 @@ export default async function HomePage() {
               <div className="flex items-center justify-between bg-white px-4 py-3">
                 <div className="flex items-center gap-2">
                   <span className="grid size-7 place-items-center rounded-lg bg-violet-600 text-white">
-                    <Archive size={15} strokeWidth={2.5} />
+                    <BrandIcon size={18} />
                   </span>
                   <div><p className="text-xs font-bold">우리집 공간록</p><p className="text-[10px] text-slate-400">우리 집 물건 찾기</p></div>
                 </div>
@@ -151,6 +153,8 @@ export default async function HomePage() {
         </div>
       </section>
     </main>
+    <AppFooter />
+    </>
   )
 }
 

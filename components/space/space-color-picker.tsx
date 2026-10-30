@@ -29,7 +29,7 @@ export function SpaceColorPicker({ locationId, initialColor }: { locationId: str
       return
     }
 
-    await invalidateHomeInventory(queryClient)
+    await invalidateHomeInventory(queryClient, ["locations"])
     setColor(colorHex)
     setMessage('색상을 저장했습니다.')
   }

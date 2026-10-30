@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 64 64" fill="none">
+  <title>우리집 공간록 — 집 안의 서랍 아이콘 시안</title>
+  <rect width="64" height="64" rx="15" fill="#1D4ED8"/>
+  <path d="M14 29 32 14 50 29V47a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4V29Z" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="22" y="32" width="20" height="12" rx="3" stroke="white" stroke-width="3"/>
+  <path d="M29 37h6" stroke="white" stroke-width="3" stroke-linecap="round"/>
+</svg>

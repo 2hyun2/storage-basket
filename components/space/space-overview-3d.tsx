@@ -7,6 +7,7 @@ import { BufferGeometry, Float32BufferAttribute } from 'three'
 import { useMemo } from 'react'
 import type { LocalSpace } from '@/lib/space/local-spaces'
 import { getDefaultSpaceColor } from '@/lib/space/colors'
+import { SavedViewControls } from '@/components/space/saved-view-controls'
 import type {
   HomeLayout,
   SceneLayout,
@@ -92,7 +93,7 @@ export function SpaceOverview3d({
         </div>
       )}
       <div className={fillHeight ? 'relative min-h-80 flex-1' : compact ? 'h-72 sm:h-80' : 'h-96'}>
-        <Canvas
+        <Canvas frameloop="demand"
           style={fillHeight ? { position: 'absolute', inset: 0 } : undefined}
           camera={{ position: [0, cameraHeight, 0.01], fov: 42 }}
         >
@@ -123,14 +124,16 @@ export function SpaceOverview3d({
             )
           })}
 
-          <OrbitControls
+          {interactive ? (
+            <SavedViewControls center={[0, 0, 0]} scale={Math.max(homeWidth, homeDepth)} defaultPosition={[0, cameraHeight, 0.01]} />
+          ) : <OrbitControls
             target={[0, 0, 0]}
             enablePan={false}
             minDistance={4}
             maxDistance={14}
             minPolarAngle={0.08}
             maxPolarAngle={Math.PI / 2 - 0.08}
-          />
+          />}
         </Canvas>
       </div>
       {interactive && unplacedRootSpaces.length > 0 && (

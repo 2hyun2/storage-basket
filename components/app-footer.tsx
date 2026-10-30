@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Copy, Lightbulb, Mail } from 'lucide-react'
 
 const feedbackEmail = 'eventietter@naver.com'
@@ -24,6 +25,8 @@ export function AppFooter() {
         <div>
           <p className="text-sm font-semibold text-slate-900">우리집 공간록</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">공간을 만들고, 물건의 자리를 함께 기억합니다.</p>
+          <Link href="/guide" className="mt-2 inline-block text-sm font-medium text-violet-700 hover:underline">사용 가이드</Link>
+          <Link href="/privacy" className="ml-4 mt-2 inline-block text-sm font-bold text-violet-800 hover:underline">개인정보처리방침</Link>
         </div>
 
         <div className="rounded-xl bg-violet-50 px-3 py-2.5 sm:text-right">

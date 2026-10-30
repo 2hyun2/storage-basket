@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 64 64" fill="none">
+  <title>우리집 공간록 — 평면도와 서랍 시안</title>
+  <rect x="12" y="12" width="40" height="40" rx="8" stroke="currentColor" stroke-width="3.5"/>
+  <path d="M12 29h23V12M35 29v23" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M21 39h5M42 21h3M42 40h3" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

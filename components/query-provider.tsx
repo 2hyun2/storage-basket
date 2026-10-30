@@ -1,36 +1,49 @@
 'use client'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
-import { HOME_INVENTORY_QUERY_KEY } from '@/lib/space/use-supabase-inventory'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-export function QueryProvider({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient({
+function makeQueryClient() {
+  return new QueryClient({
     defaultOptions: {
       queries: {
         staleTime: 60_000,
         gcTime: 15 * 60_000,
-        refetchOnWindowFocus: false,
+        refetchOnWindowFocus: true,
         retry: 1,
       },
     },
-  }))
+  })
+}
+
+export function QueryProvider({ children }: { children: React.ReactNode }) {
+  const [scope, setScope] = useState(() => ({ client: makeQueryClient(), version: 0 }))
+  const current = useRef(scope.client)
+  const identity = useRef<string | null | undefined>(undefined)
 
   useEffect(() => {
     const supabase = createClient()
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      // Home 데이터는 계정마다 완전히 분리된다. 로그인 상태가 바뀌는 순간
-      // 이전 계정의 공간·물건 캐시를 제거해 잠깐이라도 섞여 보이지 않게 한다.
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
-        queryClient.removeQueries({ queryKey: HOME_INVENTORY_QUERY_KEY })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const nextId = session?.user.id ?? null
+      if (identity.current !== nextId) {
+        identity.current = nextId
+        // 계정 전환 시 진행 중 요청, 모든 서버 캐시, 열린 편집 폼을 분리한다.
+        const previous = current.current
+        const client = makeQueryClient()
+        current.current = client
+        void previous.cancelQueries()
+        previous.clear()
+        setScope((value) => ({ client, version: value.version + 1 }))
+      } else if (event === 'USER_UPDATED') {
+        void current.current.invalidateQueries()
       }
     })
 
     return () => {
       subscription.unsubscribe()
     }
-  }, [queryClient])
+  }, [])
 
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  return <QueryClientProvider key={scope.version} client={scope.client}>{children}</QueryClientProvider>
 }

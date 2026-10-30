@@ -173,7 +173,9 @@ function getLocationTrail(locationId: string, spaces: LocalSpace[]) {
   const trail: LocalSpace[] = []
   let current = spacesById.get(locationId)
 
-  while (current) {
+  const visited = new Set<string>()
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id)
     trail.unshift(current)
     current = current.parentId ? spacesById.get(current.parentId) : undefined
   }

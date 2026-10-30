@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Archive } from 'lucide-react'
+import { BrandIcon } from '@/components/brand-icon'
 import { AuthForm } from '@/components/auth-form'
 
 type SignupPageProps = {
@@ -16,7 +16,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
         href="/"
         className="inline-flex size-10 items-center justify-center rounded-xl bg-violet-600 font-bold text-white"
       >
-        <Archive size={20} strokeWidth={2.5} />
+        <BrandIcon size={24} />
       </Link>
       <p className="mt-4 text-sm font-bold text-violet-600">{initialInviteCode ? '공동체 초대' : '나만의 정리 공간'}</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-normal text-slate-950">
@@ -28,6 +28,9 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
           : '가입하면 기본 Home 하나와 관리자 권한이 자동으로 만들어져요.'}
       </p>
       <AuthForm mode="signup" initialInviteCode={initialInviteCode} />
+      <p className="mt-4 text-sm leading-6 text-slate-500">
+        가입 전 <Link href="/privacy" className="font-semibold text-violet-700 underline">개인정보처리방침</Link>에서 수집 항목과 공동체 내 공개 범위를 확인해 주세요.
+      </p>
     </section>
   )
 }

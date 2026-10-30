@@ -284,7 +284,9 @@ function getSpacePath<T extends { id: string; parentId: string | null }>(
   const path: T[] = []
   let currentId = spaceId
 
-  while (currentId) {
+  const visited = new Set<string>()
+  while (currentId && !visited.has(currentId)) {
+    visited.add(currentId)
     const space = spacesById.get(currentId)
 
     if (!space) {

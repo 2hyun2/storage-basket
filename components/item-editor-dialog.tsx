@@ -88,7 +88,7 @@ export function ItemEditorDialog({
       return
     }
 
-    await invalidateHomeInventory(queryClient)
+    await invalidateHomeInventory(queryClient, ["items"])
     onClose()
   }
 
@@ -219,7 +219,9 @@ function buildLocationOptions(spaces: Array<{ id: string; name: string; parentId
     const names: string[] = []
     let current: typeof space | undefined = space
 
-    while (current) {
+    const visited = new Set<string>()
+    while (current && !visited.has(current.id)) {
+      visited.add(current.id)
       names.unshift(current.name)
       current = current.parentId ? spacesById.get(current.parentId) : undefined
     }

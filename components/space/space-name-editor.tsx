@@ -41,7 +41,7 @@ export function SpaceNameEditor({
       return
     }
 
-    await invalidateHomeInventory(queryClient)
+    await invalidateHomeInventory(queryClient, ["locations"])
     setIsEditing(false)
   }
 

@@ -1,12 +1,14 @@
 'use client'
 
 import { useCallback } from 'react'
-import { useQuery, type QueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { cachedRows, readAllPages } from '@/lib/space/paged-query'
+import { HOME_INVENTORY_QUERY_KEY, invalidateHomeInventory } from '@/lib/space/query-cache'
+export { HOME_INVENTORY_QUERY_KEY, invalidateHomeInventory } from '@/lib/space/query-cache'
 import { createClient } from '@/lib/supabase/client'
 import type { LocalItem } from '@/lib/space/local-items'
 import type { LocalSpace } from '@/lib/space/local-spaces'
 
-export const HOME_INVENTORY_QUERY_KEY = ['home-inventory'] as const
 
 export type HomeLayout = {
   id: string
@@ -105,7 +107,7 @@ const emptyInventory: HomeInventory = {
   structures: [],
 }
 
-async function fetchHomeInventory(): Promise<HomeInventory> {
+async function fetchHomeInventory(queryClient: QueryClient): Promise<HomeInventory> {
   const supabase = createClient()
   const { data: userData } = await supabase.auth.getUser()
   const userId = userData.user?.id
@@ -151,27 +153,27 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
       .select('id, name, invite_code')
       .eq('id', membership.home_id)
       .maybeSingle(),
-    supabase
+    cachedRows(queryClient, 'home_members', membership.home_id, (from, to) => supabase
       .from('home_members')
       .select('user_id, role, joined_at')
       .eq('home_id', membership.home_id)
-      .order('joined_at'),
-    supabase
+      .order('joined_at').order('user_id').range(from, to)),
+    cachedRows(queryClient, 'locations', membership.home_id, (from, to) => supabase
       .from('locations')
       .select('id, name, parent_id, created_at, is_panel_visible, color_hex')
       .eq('home_id', membership.home_id)
       .is('deleted_at', null)
-      .order('created_at'),
-    supabase
+      .order('created_at').order('id').range(from, to)),
+    cachedRows(queryClient, 'items', membership.home_id, (from, to) => supabase
       .from('items')
       .select('id, title, location_id, quantity, unit, category, note, created_at')
       .eq('home_id', membership.home_id)
       .is('deleted_at', null)
-      .order('created_at'),
-    supabase
+      .order('created_at').order('id').range(from, to)),
+    cachedRows(queryClient, 'space_layouts', membership.home_id, (from, to) => supabase
       .from('space_layouts')
       .select('id, layout_key, scene_location_id, view_kind, width_cm, height_cm, depth_cm')
-      .eq('home_id', membership.home_id),
+      .eq('home_id', membership.home_id).order('id').range(from, to)),
   ])
 
   for (const result of [homeResult, membersResult, locationsResult, itemsResult, layoutsResult]) {
@@ -184,10 +186,10 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
   const members = membersResult.data ?? []
   const memberUserIds = members.map((member) => member.user_id)
   const { data: memberProfiles, error: memberProfilesError } = memberUserIds.length > 0
-    ? await supabase
+    ? await cachedRows(queryClient, 'profiles', membership.home_id, (from, to) => supabase
         .from('profiles')
         .select('id, display_name')
-        .in('id', memberUserIds)
+        .in('id', memberUserIds).order('id').range(from, to))
     : { data: [], error: null }
 
   if (memberProfilesError) {
@@ -197,14 +199,14 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
   const layoutIds = layouts.map((layout) => layout.id)
   const [placementsResult, structuresResult] = layoutIds.length > 0
     ? await Promise.all([
-        supabase
+        cachedRows(queryClient, 'space_placements', membership.home_id, (from, to) => supabase
           .from('space_placements')
           .select('id, layout_id, location_id, x_cm, y_cm, z_cm, width_cm, height_cm, depth_cm')
-          .in('layout_id', layoutIds),
-        supabase
+          .in('layout_id', layoutIds).order('id').range(from, to)),
+        cachedRows(queryClient, 'scene_structures', membership.home_id, (from, to) => supabase
           .from('scene_structures')
           .select('id, layout_id, kind, name, x_cm, y_cm, z_cm, width_cm, height_cm, depth_cm, color_hex, is_label_visible')
-          .in('layout_id', layoutIds),
+          .in('layout_id', layoutIds).order('id').range(from, to)),
       ])
     : [{ data: [], error: null }, { data: [], error: null }]
 
@@ -224,16 +226,10 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
 
     // 새 표시 설정용 SQL을 아직 적용하지 않은 기존 Home도
     // 공간·물건·구조물 화면이 멈추지 않도록 이전 열 구성으로 한 번 더 읽는다.
-    const fallbackStructuresResult = await supabase
+    structureRows = await readAllPages((from, to) => supabase
       .from('scene_structures')
       .select('id, layout_id, kind, name, x_cm, y_cm, z_cm, width_cm, height_cm, depth_cm')
-      .in('layout_id', layoutIds)
-
-    if (fallbackStructuresResult.error) {
-      throw fallbackStructuresResult.error
-    }
-
-    structureRows = fallbackStructuresResult.data ?? []
+      .in('layout_id', layoutIds).order('id').range(from, to))
   }
 
   const homeLayoutRow = layouts.find((layout) => layout.layout_key === 'home')
@@ -319,19 +315,17 @@ async function fetchHomeInventory(): Promise<HomeInventory> {
   }
 }
 
-export function invalidateHomeInventory(queryClient: QueryClient) {
-  return queryClient.invalidateQueries({ queryKey: HOME_INVENTORY_QUERY_KEY })
-}
-
 export function useSupabaseInventory() {
+  const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: HOME_INVENTORY_QUERY_KEY,
-    queryFn: fetchHomeInventory,
+    queryFn: () => fetchHomeInventory(queryClient),
+    refetchOnWindowFocus: true,
   })
   const data = query.data ?? emptyInventory
   const refresh = useCallback(async () => {
-    await query.refetch()
-  }, [query])
+    await invalidateHomeInventory(queryClient)
+  }, [queryClient])
 
   return {
     ...data,

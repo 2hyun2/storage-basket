@@ -10,6 +10,7 @@ import { RectangularGrid } from '@/components/space/space-overview-3d'
 import { getDefaultSpaceColor } from '@/lib/space/colors'
 import { invalidateHomeInventory, useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
+import { SavedViewControls } from '@/components/space/saved-view-controls'
 
 export type SceneLayoutData = {
   widthCm: number
@@ -144,7 +145,7 @@ export function SpaceInterior3d({
         <span className="text-violet-600">모든 치수는 cm · 블록을 클릭해 들어가기</span>
       </div>
       <div className="h-80">
-        <Canvas
+        <Canvas frameloop="demand"
           camera={{
             position: [sceneWidth / 2, cameraHeight, sceneDepth / 2 + 0.01],
             fov: 42,
@@ -175,14 +176,20 @@ export function SpaceInterior3d({
               onEnterNested={(nestedChildId) => router.push(`/app/space/${nestedChildId}`)}
             />
           ))}
-          <OrbitControls
+          {!onStructureSelect ? (
+            <SavedViewControls
+              center={[sceneWidth / 2, 0, sceneDepth / 2]}
+              scale={Math.max(sceneWidth, sceneDepth)}
+              defaultPosition={[sceneWidth / 2, cameraHeight, sceneDepth / 2 + 0.01]}
+            />
+          ) : <OrbitControls
             target={[sceneWidth / 2, 0, sceneDepth / 2]}
             enablePan={false}
             minDistance={3.5}
             maxDistance={11}
             minPolarAngle={0.08}
             maxPolarAngle={Math.PI / 2 - 0.08}
-          />
+          />}
         </Canvas>
       </div>
       <div className="border-t border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600">
@@ -540,7 +547,7 @@ export function PlacementEditor({
       return
     }
 
-    await invalidateHomeInventory(queryClient)
+    await invalidateHomeInventory(queryClient, ["space_placements","space_layouts","locations"])
     onClose()
   }
 
@@ -602,7 +609,7 @@ export function PlacementEditor({
     }
 
     // 내부 장면 생성·치수 동기화는 DB 트리거가 같은 트랜잭션에서 처리한다.
-    await invalidateHomeInventory(queryClient)
+    await invalidateHomeInventory(queryClient, ["space_placements","space_layouts","locations"])
     onClose()
   }
 
@@ -719,7 +726,7 @@ export function PlacementHeightPreview({ bounds, siblings, draft, color }: {
     <div className="mt-3 overflow-hidden border border-slate-200 bg-slate-50">
       <p className="px-3 py-2 text-xs font-semibold text-slate-700">3D 미리보기 · 드래그로 회전</p>
       <div className="h-56">
-        <Canvas camera={{ position: [width / 2 + distance, distance, depth / 2 + distance], fov: 45 }}>
+        <Canvas frameloop="demand" camera={{ position: [width / 2 + distance, distance, depth / 2 + distance], fov: 45 }}>
           <color attach="background" args={['#f8fafc']} />
           <ambientLight intensity={1.4} />
           <directionalLight position={[4, 8, 5]} intensity={2} />

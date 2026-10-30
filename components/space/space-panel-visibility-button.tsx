@@ -39,7 +39,7 @@ export function SpacePanelVisibilityButton({
 
     setIsVisible(nextVisibility)
     setIsSaving(false)
-    await invalidateHomeInventory(queryClient)
+    await invalidateHomeInventory(queryClient, ["locations"])
   }
 
   return (

@@ -1,5 +1,21 @@
 # 공통 UI 기준
 
+## 브랜드 아이콘
+
+`components/brand-icon.tsx`의 `BrandIcon`을 사용한다. 평면도 안에 수납 손잡이를 넣은 디자인이다.
+
+```tsx
+<BrandIcon size={32} />
+<BrandIcon size={40} color="#ffffff" bgColor="#1d4ed8" />
+<BrandIcon size="2rem" className="text-violet-600" />
+```
+
+- `size`: 숫자는 px, 문자열은 CSS 크기. 기본 24px.
+- `color`: 선 색. 기본 `currentColor`로 상위 글자 색을 따른다.
+- `bgColor`: 생략하면 투명. 배경은 CSS 래퍼로 지정해도 된다.
+- 헤더·인트로·로그인·회원가입은 이 컴포넌트를 공유한다.
+- 파비콘·모바일 아이콘·OG 이미지는 같은 디자인을 정적 파일로 제공한다.
+
 사용자가 수정한 인트로 `app/page.tsx`를 기준으로 한다.
 
 - 일반 페이지 제목: 30px (`text-3xl`), 600 (`font-semibold`), 기본 자간.

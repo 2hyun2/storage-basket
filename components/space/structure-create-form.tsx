@@ -202,7 +202,7 @@ export function StructureCreateForm({
     }
 
     startNew(kind)
-    await invalidateHomeInventory(queryClient)
+    await invalidateHomeInventory(queryClient, ["scene_structures"])
   }
 
   async function deleteStructure() {
@@ -222,7 +222,7 @@ export function StructureCreateForm({
     }
 
     startNew(kind)
-    await invalidateHomeInventory(queryClient)
+    await invalidateHomeInventory(queryClient, ["scene_structures"])
   }
 
   const sizeX = numericValue(draft.sizeX)

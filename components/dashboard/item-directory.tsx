@@ -1,4 +1,5 @@
 'use client'
+import { getSpaceIndex } from '@/lib/space/space-index'
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -250,13 +251,16 @@ function CategoryFilter({ label, count, selected, onClick }: CategoryFilterProps
 
 function getLocationPath(locationId: string, spaces: LocalSpace[]) {
   const path: string[] = []
-  let currentSpace = spaces.find((space) => space.id === locationId)
+  const spacesById = getSpaceIndex(spaces)
+  let currentSpace = spacesById.get(locationId)
 
-  while (currentSpace) {
+  const visited = new Set<string>()
+  while (currentSpace && !visited.has(currentSpace.id)) {
+    visited.add(currentSpace.id)
     path.unshift(currentSpace.name)
     const parentId = currentSpace.parentId
     currentSpace = parentId
-      ? spaces.find((space) => space.id === parentId)
+      ? spacesById.get(parentId)
       : undefined
   }
 

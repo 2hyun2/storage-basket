@@ -277,7 +277,9 @@ function getLocalSpacePath(space: LocalSpace, spacesById: Map<string, LocalSpace
   const path = [space.name]
   let parentId = space.parentId
 
-  while (parentId) {
+  const visited = new Set<string>()
+  while (parentId && !visited.has(parentId)) {
+    visited.add(parentId)
     const parent = spacesById.get(parentId)
 
     if (!parent) {

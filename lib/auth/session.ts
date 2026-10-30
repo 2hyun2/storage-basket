@@ -5,7 +5,8 @@ export function sessionCookieOptions<T extends { maxAge?: number; expires?: Date
   options: T,
   persistSession: boolean,
 ) {
-  if (persistSession) {
+  // 삭제 쿠키의 만료값은 로그아웃 때도 유지한다.
+  if (persistSession || options.maxAge === 0 || (options.expires && options.expires.getTime() <= Date.now())) {
     return options
   }
 

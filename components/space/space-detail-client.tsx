@@ -382,7 +382,9 @@ function getSpacePath(currentId: string, spaces: ReturnType<typeof useSupabaseIn
   const path: ReturnType<typeof useSupabaseInventory>['spaces'] = []
   let nextId: string | null = currentId
 
-  while (nextId) {
+  const visited = new Set<string>()
+  while (nextId && !visited.has(nextId)) {
+    visited.add(nextId)
     const currentSpace = spacesById.get(nextId)
     if (!currentSpace) break
     path.unshift(currentSpace)

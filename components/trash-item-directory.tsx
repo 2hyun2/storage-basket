@@ -6,6 +6,7 @@ import { RotateCcw, Trash2 } from 'lucide-react'
 import type { LocalItem } from '@/lib/space/local-items'
 import { invalidateHomeInventory, useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
+import { readAllPages } from '@/lib/space/paged-query'
 
 type TrashItem = LocalItem & {
   deletedAt: string
@@ -22,16 +23,12 @@ export function TrashItemDirectory() {
     queryKey: ['trash-items', homeId],
     enabled: Boolean(homeId),
     queryFn: async (): Promise<TrashItem[]> => {
-      const { data, error } = await createClient()
+      const data = await readAllPages((from, to) => createClient()
         .from('items')
         .select('id, title, location_id, quantity, unit, category, note, created_at, deleted_at')
         .eq('home_id', homeId!)
         .not('deleted_at', 'is', null)
-        .order('deleted_at', { ascending: false })
-
-      if (error) {
-        throw error
-      }
+        .order('deleted_at', { ascending: false }).order('id').range(from, to))
 
       return (data ?? []).map((item) => ({
         id: item.id,
@@ -73,7 +70,7 @@ export function TrashItemDirectory() {
     }
 
     await Promise.all([
-      invalidateHomeInventory(queryClient),
+      invalidateHomeInventory(queryClient, ["items"]),
       queryClient.invalidateQueries({ queryKey: ['trash-items', homeId] }),
     ])
   }
@@ -144,7 +141,9 @@ function buildLocationOptions(spaces: Array<{ id: string; name: string; parentId
     const names: string[] = []
     let current: typeof space | undefined = space
 
-    while (current) {
+    const visited = new Set<string>()
+    while (current && !visited.has(current.id)) {
+      visited.add(current.id)
       names.unshift(current.name)
       current = current.parentId ? spacesById.get(current.parentId) : undefined
     }

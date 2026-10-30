@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, Crown, Link2, RefreshCw, UsersRound } from 'lucide-react'
+import { Check, Copy, Crown, Link2, RefreshCw, UserMinus, UsersRound } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { invalidateHomeInventory, useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 
@@ -24,9 +24,9 @@ export function CommunityManager() {
   const joinedHomesQuery = useQuery({
     queryKey: ['my-homes'],
     queryFn: fetchJoinedHomes,
+    refetchOnWindowFocus: true,
   })
   const [editedName, setEditedName] = useState<string | null>(null)
-  const [regeneratedInviteCode, setRegeneratedInviteCode] = useState<string | null>(null)
   const [joinCode, setJoinCode] = useState('')
   const [joinPreview, setJoinPreview] = useState<InvitePreview | null>(null)
   const [isJoinConfirmed, setIsJoinConfirmed] = useState(false)
@@ -35,18 +35,15 @@ export function CommunityManager() {
   const [isCheckingJoin, setIsCheckingJoin] = useState(false)
   const [isJoining, setIsJoining] = useState(false)
   const [switchingHomeId, setSwitchingHomeId] = useState<string | null>(null)
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null)
 
   if (isLoading) {
     return <p className="text-sm font-bold text-slate-500">공동체 정보를 불러오는 중입니다.</p>
   }
 
-  if (!home) {
-    return <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">참여 중인 공동체를 찾지 못했습니다.</p>
-  }
-
-  const activeHome = home
+  const activeHome = home ?? { id: '', name: '', inviteCode: '', role: 'member' as const }
   const name = editedName ?? activeHome.name
-  const inviteCode = regeneratedInviteCode ?? activeHome.inviteCode
+  const inviteCode = activeHome.inviteCode
   const isOwner = activeHome.role === 'owner'
   const owner = members.find((member) => member.role === 'owner')
   const joinedHomes = joinedHomesQuery.data ?? []
@@ -100,9 +97,8 @@ export function CommunityManager() {
       return
     }
 
-    setRegeneratedInviteCode(data)
     await invalidateHomeInventory(queryClient)
-    setMessage('새 초대 코드를 만들었습니다.')
+    setMessage('초대 코드를 재발급했습니다. 기존 구성원은 유지되며 이전 코드와 링크는 더 이상 사용할 수 없습니다.')
   }
 
   async function checkJoinCode() {
@@ -135,6 +131,25 @@ export function CommunityManager() {
 
     setJoinCode(normalizedCode)
     setJoinPreview(data)
+  }
+
+  async function removeMember(userId: string, displayName: string) {
+    if (!isOwner || removingUserId || !window.confirm(`“${displayName}”님을 공동체에서 제외할까요? 기존 공간·물건·변경 기록은 유지됩니다. 기존 초대 코드를 알고 있다면 다시 참여할 수 있으므로 필요한 경우 코드를 재발급해 주세요.`)) return
+    setRemovingUserId(userId)
+    setMessage(null)
+    try {
+      const { error } = await createClient().rpc('remove_home_member', {
+        target_home_id: activeHome.id,
+        target_user_id: userId,
+      })
+      if (error) throw error
+      await refreshHomes(queryClient)
+      setMessage(`“${displayName}”님을 공동체에서 제외했습니다.`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '구성원을 제외하지 못했습니다. 관리자 SQL 적용 여부를 확인해 주세요.')
+    } finally {
+      setRemovingUserId(null)
+    }
   }
 
   async function joinCommunity() {
@@ -179,6 +194,27 @@ export function CommunityManager() {
 
     await invalidateHomeInventory(queryClient)
     setMessage('보고 있는 공동체를 바꿨습니다.')
+  }
+
+  if (!home) {
+    return (
+      <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+        <h2 className="font-semibold">참여 중인 공동체가 없습니다</h2>
+        <p className="text-sm text-slate-600">초대 코드를 받아 공동체에 참여할 수 있습니다.</p>
+        <div className="flex gap-2">
+          <input aria-label="초대 코드" value={joinCode} onChange={(event) => { setJoinCode(event.target.value.toUpperCase()); setJoinPreview(null); setIsJoinConfirmed(false) }} className="min-w-0 flex-1 rounded-xl border px-3 py-2" placeholder="초대 코드" />
+          <button type="button" onClick={() => void checkJoinCode()} disabled={isCheckingJoin} className="rounded-xl border px-3 py-2">확인</button>
+        </div>
+        {joinPreview && (
+          <div className="space-y-3 rounded-xl bg-violet-50 p-3">
+            <p>{joinPreview.home_name} · 대표 {joinPreview.owner_name}</p>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={isJoinConfirmed} onChange={(event) => setIsJoinConfirmed(event.target.checked)} />이 공동체에 참여합니다.</label>
+            <button type="button" onClick={() => void joinCommunity()} disabled={!isJoinConfirmed || isJoining} className="rounded-xl bg-violet-600 px-3 py-2 text-white disabled:opacity-50">{isJoining ? '참여 중' : '참여'}</button>
+          </div>
+        )}
+        {message && <p role="status" className="text-sm text-slate-700">{message}</p>}
+      </section>
+    )
   }
 
   return (
@@ -272,7 +308,7 @@ export function CommunityManager() {
         <h2 className="font-semibold text-slate-900">초대하기</h2>
         {isOwner ? (
           <>
-            <p className="mt-1 text-sm leading-6 text-slate-500">코드나 링크를 전달하면 새 구성원이 공동체 이름과 대표를 확인한 뒤 참여할 수 있습니다.</p>
+            <p className="mt-1 text-sm leading-6 text-slate-500">코드나 링크로 새 구성원을 초대합니다. 재발급해도 기존 구성원의 소속은 유지되며, 이전 코드와 링크만 만료됩니다.</p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <strong className="rounded-xl bg-slate-950 px-4 py-2 font-mono text-lg tracking-[0.16em] text-white">{inviteCode}</strong>
               <button type="button" onClick={() => void copyText(inviteCode, '초대 코드를 복사했습니다.', '복사하지 못했습니다. 코드를 직접 전달해 주세요.')} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Copy size={15} /> 코드 복사</button>
@@ -287,6 +323,7 @@ export function CommunityManager() {
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-4">
         <h2 className="font-semibold text-slate-900">구성원 {members.length}명</h2>
+        {isOwner && <p className="mt-2 text-sm leading-6 text-slate-500">구성원을 제외해도 기존 공간·물건·변경 기록은 유지됩니다. 재참여를 막으려면 초대 코드도 재발급하세요.</p>}
         <ul className="mt-3 divide-y divide-slate-100">
           {members.map((member) => (
             <li key={member.userId} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
@@ -295,6 +332,11 @@ export function CommunityManager() {
                 <span className="mt-0.5 block text-xs text-slate-500">{member.role === 'owner' ? '공동체 대표' : '구성원'}</span>
               </span>
               {member.role === 'owner' && <Crown size={17} className="shrink-0 text-amber-500" aria-label="공동체 대표" />}
+              {isOwner && member.role === 'member' && (
+                <button type="button" onClick={() => void removeMember(member.userId, member.displayName)} disabled={removingUserId !== null} className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50">
+                  <UserMinus size={15} />{removingUserId === member.userId ? '제외 중' : '강퇴'}
+                </button>
+              )}
             </li>
           ))}
         </ul>

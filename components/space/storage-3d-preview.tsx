@@ -75,7 +75,7 @@ export function Storage3dPreview({
         <span className="text-violet-200">호버·클릭 정보 · 드래그 회전</span>
       </div>
       <div className="relative h-72">
-        <Canvas
+        <Canvas frameloop="demand"
           camera={{ position: [0, 6.8, 0.01], fov: 42 }}
           onPointerMissed={() => {
             setHoveredTarget(null)
