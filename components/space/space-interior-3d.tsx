@@ -13,7 +13,7 @@ import { getDefaultSpaceColor } from '@/lib/space/colors'
 import { invalidateHomeInventory, useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
 import { SavedViewControls } from '@/components/space/saved-view-controls'
-import { centimetresToScene, toSceneCenter } from '@/lib/space/scene-coordinates'
+import { centimetresToScene, getSpacePreviewFrame, toSceneCenter } from '@/lib/space/scene-coordinates'
 import { ParentSpaceBounds } from '@/components/space/parent-space-bounds'
 import { dragPlanRectangle, type PlanGesture, type PlanPoint } from '@/lib/space/plan-gestures'
 import { applyPlanEdit, fitPlacementPosition, getPlacementSizeError, type PlacementStep } from '@/lib/space/placement-workflow'
@@ -114,9 +114,7 @@ export function SpaceInterior3d({
   }
   const sceneWidth = sceneLayout.widthCm * centimetresToScene
   const sceneDepth = sceneLayout.depthCm * centimetresToScene
-  const sceneHeight = sceneLayout.heightCm * centimetresToScene
-  const previewDistance = Math.max(sceneWidth, sceneDepth, sceneHeight, 2)
-  const previewTarget: [number, number, number] = [sceneWidth / 2, sceneHeight / 3, sceneDepth / 2]
+  const previewFrame = getSpacePreviewFrame(sceneLayout, 42)
   // 내부 공간은 물건·하위 공간의 차이를 바로 읽을 수 있도록 가까운 상단 시점에서 연다.
   const cameraHeight = Math.max(sceneWidth, sceneDepth) * 1.45
   const placedChildSpaces = childSpaces.flatMap((child) => {
@@ -139,7 +137,7 @@ export function SpaceInterior3d({
         <Canvas frameloop="demand"
           camera={{
             position: showBounds
-              ? [sceneWidth / 2 + previewDistance, previewDistance, sceneDepth / 2 + previewDistance]
+              ? previewFrame.position
               : [sceneWidth / 2, cameraHeight, sceneDepth / 2 + 0.01],
             fov: 42,
           }}
@@ -177,10 +175,10 @@ export function SpaceInterior3d({
               defaultPosition={[sceneWidth / 2, cameraHeight, sceneDepth / 2 + 0.01]}
             />
           ) : <OrbitControls
-            target={showBounds ? previewTarget : [sceneWidth / 2, 0, sceneDepth / 2]}
+            target={showBounds ? previewFrame.target : [sceneWidth / 2, 0, sceneDepth / 2]}
             enablePan={false}
-            minDistance={showBounds ? previewDistance * 0.2 : 3.5}
-            maxDistance={showBounds ? previewDistance * 6 : 11}
+            minDistance={showBounds ? previewFrame.distance * 0.2 : 3.5}
+            maxDistance={showBounds ? previewFrame.distance * 6 : 11}
             minPolarAngle={0.08}
             maxPolarAngle={Math.PI / 2 - 0.08}
           />}
@@ -704,10 +702,7 @@ export function PlacementHeightPreview({ bounds, siblings, draft, color }: {
   draft: { x: number; y: number; z: number; width: number; depth: number; height: number }
   color: string
 }) {
-  const width = bounds.widthCm * centimetresToScene
-  const depth = bounds.depthCm * centimetresToScene
-  const distance = Math.max(width, depth, bounds.heightCm * centimetresToScene, 2)
-  const target: [number, number, number] = [width / 2, bounds.heightCm * centimetresToScene / 3, depth / 2]
+  const { target, position, distance } = getSpacePreviewFrame(bounds)
   const blocks = [
     ...siblings.map((sibling) => ({ ...sibling, color: sibling.kind === 'window' ? '#7dd3fc' : '#94a3b8', selected: false })),
     { id: 'draft', xCm: draft.x, yCm: draft.z, zCm: draft.y, widthCm: draft.width, heightCm: draft.height, depthCm: draft.depth, color, selected: true },
@@ -721,7 +716,7 @@ export function PlacementHeightPreview({ bounds, siblings, draft, color }: {
         바깥 테두리: 가로 {bounds.widthCm}cm · 세로 {bounds.depthCm}cm · 높이 {bounds.heightCm}cm
       </p>
       <div className="h-56">
-        <Canvas frameloop="demand" camera={{ position: [width / 2 + distance, distance, depth / 2 + distance], fov: 45 }}>
+        <Canvas frameloop="demand" camera={{ position, fov: 45 }}>
           <color attach="background" args={['#f8fafc']} />
           <ambientLight intensity={1.4} />
           <directionalLight position={[4, 8, 5]} intensity={2} />
@@ -734,7 +729,7 @@ export function PlacementHeightPreview({ bounds, siblings, draft, color }: {
               <Edges color={block.selected ? '#1d4ed8' : '#94a3b8'} />
             </mesh>
           ))}
-          <OrbitControls target={target} enablePan={false} minDistance={1} maxDistance={distance * 4} />
+          <OrbitControls target={target} enablePan={false} minDistance={distance * 0.15} maxDistance={distance * 4} />
         </Canvas>
       </div>
       <p className="px-3 py-2 text-xs leading-5 text-slate-600">

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import ts from 'typescript'
 import { QueryClient } from '@tanstack/react-query'
-import { Box3, BoxGeometry, Mesh } from 'three'
+import { Box3, BoxGeometry, Mesh, PerspectiveCamera, Vector3 } from 'three'
 
 // 순수 TypeScript 유틸을 별도 빌드 산출물 없이 테스트한다.
 function load(path) {
@@ -20,8 +20,31 @@ function load(path) {
 const { sessionCookieOptions } = load('../lib/auth/session.ts')
 const { readAllPages, cachedRows } = load('../lib/space/paged-query.ts')
 const { invalidateHomeInventory } = load('../lib/space/query-cache.ts')
-const { toSceneCenter } = load('../lib/space/scene-coordinates.ts')
+const { toSceneCenter, getSpacePreviewFrame } = load('../lib/space/scene-coordinates.ts')
 const { applyPlanEdit, fitPlacementPosition, getPlacementSizeError } = load('../lib/space/placement-workflow.ts')
+
+test('높은 부모 공간도 미리보기의 여덟 꼭짓점이 시야 안에 들어옴', () => {
+  for (const bounds of [
+    { widthCm: 200, depthCm: 100, heightCm: 250 },
+    { widthCm: 30, depthCm: 20, heightCm: 500 },
+  ]) {
+    for (const fov of [42, 45]) {
+      const frame = getSpacePreviewFrame(bounds, fov)
+      const camera = new PerspectiveCamera(fov, 1, 0.01, 100)
+      camera.position.set(...frame.position)
+      camera.lookAt(...frame.target)
+      camera.updateMatrixWorld()
+      for (const x of [0, bounds.widthCm / 100]) {
+        for (const y of [0, bounds.heightCm / 100]) {
+          for (const z of [0, bounds.depthCm / 100]) {
+            const vertex = new Vector3(x, y, z).project(camera)
+            assert.ok(Math.abs(vertex.x) < 1 && Math.abs(vertex.y) < 1)
+          }
+        }
+      }
+    }
+  }
+})
 
 test('크기 단계에서 이동 입력이 들어와도 기존 좌표를 유지하고 배치 단계에서는 크기를 유지', () => {
   const current = { x: 50, y: 69, width: 75, depth: 30 }

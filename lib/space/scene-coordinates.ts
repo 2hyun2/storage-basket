@@ -23,3 +23,16 @@ export function toSceneCenter({
     (planYCm + depthCm / 2) * centimetresToScene,
   ]
 }
+
+// 전체 부모 경계를 감싸는 구를 시야 안에 넣고, 회전 중심을 높이의 절반에 둔다.
+export function getSpacePreviewFrame(bounds: { widthCm: number; heightCm: number; depthCm: number }, fov = 45) {
+  const width = bounds.widthCm * centimetresToScene
+  const height = bounds.heightCm * centimetresToScene
+  const depth = bounds.depthCm * centimetresToScene
+  const target: [number, number, number] = [width / 2, height / 2, depth / 2]
+  const radius = Math.hypot(width, height, depth) / 2
+  const distance = Math.max(0.1, radius / Math.sin(fov * Math.PI / 360) * 1.15)
+  const offset = distance / Math.hypot(1, 0.85, 1)
+  const position: [number, number, number] = [target[0] + offset, target[1] + offset * 0.85, target[2] + offset]
+  return { target, position, distance }
+}
