@@ -1,6 +1,7 @@
 'use client'
 
-import { OrbitControls, Text } from '@react-three/drei'
+import { OrbitControls } from '@react-three/drei'
+import { SpaceNameTag } from '@/components/space/space-name-tag'
 import { Canvas } from '@react-three/fiber'
 import { useRouter } from 'next/navigation'
 import { BufferGeometry, Float32BufferAttribute } from 'three'
@@ -455,31 +456,7 @@ function SpaceLabel({
   name: string
   position?: [number, number, number]
 }) {
-  const fontSize = 0.14
-  const horizontalPadding = 0.2
-  const labelWidth = Math.max(
-    0.32,
-    Math.min(2.4, name.length * fontSize * 1.08 + horizontalPadding),
-  )
-
-  return (
-    <group position={position} rotation={[-Math.PI / 2, 0, 0]}>
-      <mesh>
-        <planeGeometry args={[labelWidth, 0.28]} />
-        <meshBasicMaterial color="#0f172a" transparent opacity={0.9} />
-      </mesh>
-      <Text
-        position={[0, 0, 0.01]}
-        fontSize={fontSize}
-        anchorX="center"
-        anchorY="middle"
-        color="#ffffff"
-        maxWidth={labelWidth - horizontalPadding}
-      >
-        {name}
-      </Text>
-    </group>
-  )
+  return <SpaceNameTag name={name} position={position} />
 }
 
 export function RectangularGrid({

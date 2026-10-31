@@ -15,6 +15,8 @@ import {
 import { normalizeSpaceColor } from '@/lib/space/colors'
 import { invalidateHomeInventory, useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
+import { PlacementStepNavigation } from '@/components/space/placement-step-navigation'
+import { applyPlanEdit, fitPlacementPosition, getPlacementSizeError, type PlacementStep } from '@/lib/space/placement-workflow'
 
 type StructureKind = 'wall' | 'window'
 type StructureRecord = SceneStructureData
@@ -36,15 +38,28 @@ function getDefaultStructureColor(kind: StructureKind) {
   return kind === 'window' ? '#38BDF8' : '#C4B5FD'
 }
 
-export function StructureCreateForm({
-  locationId,
-  locationName,
-  initialEditId,
-}: {
+type StructureCreateProps = {
   locationId: string
   locationName: string
   initialEditId?: string
-}) {
+}
+
+export function StructureCreateForm(props: StructureCreateProps) {
+  const { isLoading, error, structures } = useSupabaseInventory()
+  if (isLoading) return <p className="text-sm text-slate-500">공간과 구조물 정보를 불러오는 중입니다.</p>
+  if (error) return <p className="text-sm text-rose-700">공간 정보를 불러오지 못했습니다. 잠시 뒤 다시 시도해 주세요.</p>
+  if (props.initialEditId && !structures.some((structure) => structure.id === props.initialEditId)) {
+    return <p className="text-sm text-rose-700">수정할 벽 또는 창문을 찾을 수 없습니다.</p>
+  }
+  // 캐시를 읽기 전에 편집 상태가 빈 신규 객체로 초기화되는 것을 방지한다.
+  return <StructureEditor key={`${props.locationId}:${props.initialEditId ?? 'new'}`} {...props} />
+}
+
+function StructureEditor({
+  locationId,
+  locationName,
+  initialEditId,
+}: StructureCreateProps) {
   const queryClient = useQueryClient()
   const {
     spaces,
@@ -61,6 +76,12 @@ export function StructureCreateForm({
   const defaultHeightCm = bounds
     ? Math.min(defaultStructureHeightCm, bounds.heightCm)
     : defaultStructureHeightCm
+  const newStructureDraft: StructureDraft = {
+    ...emptyDraft,
+    sizeX: Math.min(100, bounds?.widthCm ?? 100),
+    sizeY: Math.min(10, bounds?.depthCm ?? 10),
+    height: defaultHeightCm,
+  }
   const structures: StructureRecord[] = layout
     ? cachedStructures.filter((structure) => structure.layoutId === layout.id)
     : []
@@ -73,6 +94,7 @@ export function StructureCreateForm({
     : null
   const [kind, setKind] = useState<StructureKind>(initialStructure?.kind ?? 'wall')
   const [editingId, setEditingId] = useState<string | null>(initialStructure?.id ?? null)
+  const [step, setStep] = useState<PlacementStep>(initialStructure ? 'position' : 'size')
   const [structureColor, setStructureColor] = useState(
     initialStructure?.colorHex ?? getDefaultStructureColor(initialStructure?.kind ?? 'wall'),
   )
@@ -87,7 +109,7 @@ export function StructureCreateForm({
     sizeY: initialStructure.depthCm,
     elevation: initialStructure.yCm,
     height: initialStructure.heightCm,
-  } : { ...emptyDraft, height: defaultHeightCm })
+  } : newStructureDraft)
   const structureHeightCm = draft.height === '' ? defaultHeightCm : draft.height
   const elevationCm = numericValue(draft.elevation)
   const [message, setMessage] = useState<string | null>(null)
@@ -108,15 +130,17 @@ export function StructureCreateForm({
   ]
 
   function startNew(nextKind: StructureKind = kind) {
+    setStep('size')
     setKind(nextKind)
     setEditingId(null)
     setStructureColor(getDefaultStructureColor(nextKind))
     setIsLabelVisible(true)
-    setDraft({ ...emptyDraft, height: defaultHeightCm })
+    setDraft(newStructureDraft)
     setMessage(null)
   }
 
   function startEdit(structure: StructureRecord) {
+    setStep('position')
     setKind(structure.kind)
     setEditingId(structure.id)
     setStructureColor(structure.colorHex ?? getDefaultStructureColor(structure.kind))
@@ -133,8 +157,19 @@ export function StructureCreateForm({
     setMessage(null)
   }
 
+  function goToPosition() {
+    const size = { width: numericValue(draft.sizeX), depth: numericValue(draft.sizeY), height: numericValue(draft.height) }
+    const error = getPlacementSizeError(size, bounds)
+    if (error) { setMessage(error); return }
+    const next = fitPlacementPosition({ x: numericValue(draft.planX), y: numericValue(draft.planY), z: elevationCm }, size, bounds!)
+    setDraft({ ...draft, planX: next.x, planY: next.y, elevation: next.z })
+    setStep('position')
+    setMessage(null)
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (step === 'size') { goToPosition(); return }
     setMessage(null)
     if (!layoutId || !bounds) {
       setMessage('현재 공간의 3D 화면을 불러오지 못했습니다.')
@@ -231,8 +266,9 @@ export function StructureCreateForm({
   const maxSizeY = bounds ? bounds.depthCm : null
   const maxStartX = bounds ? Math.max(0, bounds.widthCm - sizeX) : null
   const maxStartY = bounds ? Math.max(0, bounds.depthCm - sizeY) : null
-  const isDraftComplete = hasCompleteDraft(draft)
-  const overlappingSibling = isDraftComplete
+  const previewDraft = step === 'size' ? { ...draft, planX: 0, planY: 0, elevation: 0 } : draft
+  const isDraftComplete = hasCompleteDraft(previewDraft)
+  const overlappingSibling = step === 'position' && isDraftComplete
     ? siblingPlacements.find((sibling) => rectanglesOverlap(
         {
           x: numericValue(draft.planX),
@@ -251,7 +287,7 @@ export function StructureCreateForm({
   const previewStructure = bounds && isDraftComplete ? createPreviewStructure({
     id: editingId ?? 'new-structure-preview',
     kind,
-    draft,
+    draft: previewDraft,
     heightCm: structureHeightCm,
     colorHex: normalizeSpaceColor(structureColor) ?? getDefaultStructureColor(kind),
     isLabelVisible,
@@ -286,6 +322,7 @@ export function StructureCreateForm({
         }))}
         items={[]}
         layout={bounds}
+        showBounds
         layoutId={null}
         placements={placements}
         structures={previewStructures}
@@ -313,6 +350,7 @@ export function StructureCreateForm({
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+        <PlacementStepNavigation step={step} onSize={() => { setStep('size'); setMessage(null) }} onPosition={goToPosition} />
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold">{editingId ? '벽·창문 고치기' : '벽·창문 추가'}</p>
@@ -321,33 +359,35 @@ export function StructureCreateForm({
           {editingId && <button type="button" onClick={() => startNew()} className="text-xs font-bold text-violet-700">새 등록으로 전환</button>}
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-2">
+        {step === 'size' && <div className="grid gap-2 sm:grid-cols-2">
           <KindButton kind="wall" selected={kind === 'wall'} label="벽" icon={RectangleHorizontal} onClick={startNew} />
           <KindButton kind="window" selected={kind === 'window'} label="창문" icon={PanelTop} onClick={startNew} />
-        </div>
+        </div>}
 
-        <Field label="표시 이름" value={draft.name} onChange={(name) => setDraft({ ...draft, name })} placeholder={kind === 'wall' ? '예: 거실 북쪽 벽' : '예: 거실 통창'} />
-        <StructureColorField value={structureColor} onChange={setStructureColor} />
-        <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold text-slate-700">
+        {step === 'size' && <Field label="표시 이름" value={draft.name} onChange={(name) => setDraft({ ...draft, name })} placeholder={kind === 'wall' ? '예: 거실 북쪽 벽' : '예: 거실 통창'} />}
+        {step === 'size' && <StructureColorField value={structureColor} onChange={setStructureColor} />}
+        {step === 'size' && <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold text-slate-700">
           <input
             type="checkbox"
             checked={isLabelVisible}
             onChange={(event) => setIsLabelVisible(event.target.checked)}
           />
           3D에서 이름표 보이기
-        </label>
+        </label>}
 
         <div className="rounded-xl bg-slate-50 p-3">
-          <p className="text-sm font-semibold">cm 위치와 크기</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">X는 왼쪽→오른쪽, Y는 위쪽→아래쪽입니다. 창문은 벽의 자식이 아닌 별도 건축 영역이며, 문은 벽 구간을 비워 개구부로 표현합니다.</p>
+          <p className="text-sm font-semibold">{step === 'size' ? '가로·세로·자체 높이' : '놓을 위치와 바닥에서의 높이'}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">{step === 'size'
+            ? '현재는 바닥 원점에서 크기만 비교합니다. 주변 객체와의 겹침은 배치 단계에서 확인합니다.'
+            : `확정한 크기: 가로 ${sizeX}cm · 세로 ${sizeY}cm · 자체 높이 ${structureHeightCm}cm. X는 왼쪽→오른쪽, Y는 위쪽→아래쪽입니다.`}</p>
           {bounds && (
             <PlacementHeightPreview
               bounds={bounds}
               siblings={siblingPlacements}
               draft={{
-                x: numericValue(draft.planX),
-                y: numericValue(draft.planY),
-                z: elevationCm,
+                x: numericValue(previewDraft.planX),
+                y: numericValue(previewDraft.planY),
+                z: numericValue(previewDraft.elevation),
                 width: sizeX,
                 depth: sizeY,
                 height: structureHeightCm,
@@ -355,37 +395,38 @@ export function StructureCreateForm({
               color={normalizeSpaceColor(structureColor) ?? getDefaultStructureColor(kind)}
             />
           )}
-          <p className="mt-3 text-xs font-semibold text-slate-700">바닥 위치 정하기 · 아래 격자를 드래그하세요</p>
+          <p className="mt-3 text-xs font-semibold text-slate-700">{step === 'size' ? '가로·세로 크기 조절' : '드래그로 배치하기'}</p>
           <PlanPlacementCanvas
+            key={step}
             draft={{
-              x: numericValue(draft.planX),
-              y: numericValue(draft.planY),
+              x: numericValue(previewDraft.planX),
+              y: numericValue(previewDraft.planY),
               width: sizeX,
               depth: sizeY,
             }}
             bounds={bounds}
             siblings={siblingPlacements}
+            interaction={step}
             isOverlapping={Boolean(overlappingSibling)}
-            onChange={(next) => setDraft({
-              ...draft,
-              planX: next.x,
-              planY: next.y,
-              sizeX: next.width,
-              sizeY: next.depth,
-            })}
+            onChange={(next) => {
+              const result = applyPlanEdit(step, {
+                x: numericValue(draft.planX), y: numericValue(draft.planY), width: sizeX, depth: sizeY,
+              }, next)
+              setDraft({ ...draft, planX: result.x, planY: result.y, sizeX: result.width, sizeY: result.depth })
+            }}
           />
           <p className="mt-3 text-xs font-bold text-slate-600">회색은 기존 공간, 보라·파랑은 벽·창문입니다. 드래그는 10cm 격자에 맞춰지며, 아래에서 1cm 단위로 고칠 수 있습니다.</p>
           <div className="mt-4 space-y-3">
-            <div className="grid grid-cols-2 gap-2">
+            {step === 'position' && <div className="grid grid-cols-2 gap-2">
               <p className="col-span-2 text-xs font-semibold text-slate-700">시작 위치 · X는 왼쪽→오른쪽, Y는 위쪽→아래쪽</p>
               <NumberField label={`좌표 X · 최대 ${maxStartX ?? '?'}cm`} value={draft.planX} min={0} max={maxStartX ?? undefined} onChange={(planX) => setDraft({ ...draft, planX })} />
               <NumberField label={`좌표 Y · 최대 ${maxStartY ?? '?'}cm`} value={draft.planY} min={0} max={maxStartY ?? undefined} onChange={(planY) => setDraft({ ...draft, planY })} />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
+            </div>}
+            {step === 'size' && <div className="grid grid-cols-2 gap-2">
               <p className="col-span-2 text-xs font-semibold text-slate-700">구조물 크기 · 가로는 X, 세로는 Y</p>
               <NumberField label={`가로 X · 최대 ${maxSizeX ?? '?'}cm`} value={draft.sizeX} min={1} max={maxSizeX ?? undefined} onChange={(sizeX) => setDraft({ ...draft, sizeX })} />
               <NumberField label={`세로 Y · 최대 ${maxSizeY ?? '?'}cm`} value={draft.sizeY} min={1} max={maxSizeY ?? undefined} onChange={(sizeY) => setDraft({ ...draft, sizeY })} />
-            </div>
+            </div>}
           </div>
           {overlappingSibling && (
             <p className="mt-3 text-xs font-bold text-rose-700">
@@ -393,14 +434,20 @@ export function StructureCreateForm({
             </p>
           )}
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <NumberField label={`바닥에서의 높이 · 최대 ${bounds ? Math.max(0, bounds.heightCm - structureHeightCm) : '?'}cm`} value={draft.elevation} min={0} max={bounds ? Math.max(0, bounds.heightCm - structureHeightCm) : undefined} onChange={(elevation) => setDraft({ ...draft, elevation })} />
-            <NumberField label={`공간 자체의 높이 · 최대 ${bounds ? Math.max(0, bounds.heightCm - elevationCm) : '?'}cm`} value={draft.height} min={1} max={bounds ? Math.max(0, bounds.heightCm - elevationCm) : undefined} onChange={(height) => setDraft({ ...draft, height })} />
+            {step === 'position'
+              ? <NumberField label={`바닥에서의 높이 · 최대 ${bounds ? Math.max(0, bounds.heightCm - structureHeightCm) : '?'}cm`} value={draft.elevation} min={0} max={bounds ? Math.max(0, bounds.heightCm - structureHeightCm) : undefined} onChange={(elevation) => setDraft({ ...draft, elevation })} />
+              : <NumberField label={`공간 자체의 높이 · 최대 ${bounds?.heightCm ?? '?'}cm`} value={draft.height} min={1} max={bounds?.heightCm} onChange={(height) => setDraft({ ...draft, height })} />}
           </div>
         </div>
 
         {message && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm font-bold text-rose-700">{message}</p>}
         <div className="grid gap-2 sm:grid-cols-2">
-          {editingId && (
+          {step === 'position' && <button type="button" onClick={() => { setStep('size'); setMessage(null) }} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700">크기 수정</button>}
+          <button className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white disabled:bg-violet-300" disabled={!layoutId}>
+            {step === 'size' ? '다음 · 배치하기' : editingId ? `${kind === 'wall' ? '벽' : '창문'} 수정 저장` : `${kind === 'wall' ? '벽' : '창문'} 저장`}
+          </button>
+        </div>
+        {editingId && step === 'position' && (
             <button
               type="button"
               onClick={() => void deleteStructure()}
@@ -410,10 +457,6 @@ export function StructureCreateForm({
               삭제
             </button>
           )}
-          <button className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white disabled:bg-violet-300" disabled={!layoutId}>
-            {editingId ? `${kind === 'wall' ? '벽' : '창문'} 수정 저장` : `${kind === 'wall' ? '벽' : '창문'} 저장`}
-          </button>
-        </div>
       </form>
     </div>
   )

@@ -1,9 +1,11 @@
 'use client'
 
-import { Edges, OrbitControls, Text } from '@react-three/drei'
+import { Edges, OrbitControls } from '@react-three/drei'
+import { SpaceNameTag } from '@/components/space/space-name-tag'
 import { Canvas } from '@react-three/fiber'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
+import { Move } from 'lucide-react'
 import { useRef, useState, type FormEvent, type PointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { RectangularGrid } from '@/components/space/space-overview-3d'
@@ -11,6 +13,11 @@ import { getDefaultSpaceColor } from '@/lib/space/colors'
 import { invalidateHomeInventory, useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
 import { SavedViewControls } from '@/components/space/saved-view-controls'
+import { centimetresToScene, toSceneCenter } from '@/lib/space/scene-coordinates'
+import { ParentSpaceBounds } from '@/components/space/parent-space-bounds'
+import { dragPlanRectangle, type PlanGesture, type PlanPoint } from '@/lib/space/plan-gestures'
+import { applyPlanEdit, fitPlacementPosition, getPlacementSizeError, type PlacementStep } from '@/lib/space/placement-workflow'
+import { PlacementStepNavigation } from '@/components/space/placement-step-navigation'
 
 export type SceneLayoutData = {
   widthCm: number
@@ -69,30 +76,7 @@ type DirectItem = {
   unit: string | null
 }
 
-const centimetresToScene = 0.01
 const dragDistanceThreshold = 6
-
-function toSceneCenter({
-  xCm,
-  elevationCm,
-  planYCm,
-  widthCm,
-  heightCm,
-  depthCm,
-}: {
-  xCm: number
-  elevationCm: number
-  planYCm: number
-  widthCm: number
-  heightCm: number
-  depthCm: number
-}): [number, number, number] {
-  return [
-    (xCm + widthCm / 2) * centimetresToScene,
-    (elevationCm + heightCm / 2) * centimetresToScene,
-    (planYCm + depthCm / 2) * centimetresToScene,
-  ]
-}
 
 export function SpaceInterior3d({
   spaceName,
@@ -107,6 +91,7 @@ export function SpaceInterior3d({
   selectedStructureId,
   spaceColor,
   planOnly = false,
+  showBounds = false,
 }: {
   spaceName: string
   childSpaces: ChildSpace[]
@@ -120,6 +105,7 @@ export function SpaceInterior3d({
   selectedStructureId?: string | null
   spaceColor?: string
   planOnly?: boolean
+  showBounds?: boolean
 }) {
   const sceneLayout = layout ?? {
     widthCm: 450,
@@ -128,6 +114,9 @@ export function SpaceInterior3d({
   }
   const sceneWidth = sceneLayout.widthCm * centimetresToScene
   const sceneDepth = sceneLayout.depthCm * centimetresToScene
+  const sceneHeight = sceneLayout.heightCm * centimetresToScene
+  const previewDistance = Math.max(sceneWidth, sceneDepth, sceneHeight, 2)
+  const previewTarget: [number, number, number] = [sceneWidth / 2, sceneHeight / 3, sceneDepth / 2]
   // 내부 공간은 물건·하위 공간의 차이를 바로 읽을 수 있도록 가까운 상단 시점에서 연다.
   const cameraHeight = Math.max(sceneWidth, sceneDepth) * 1.45
   const placedChildSpaces = childSpaces.flatMap((child) => {
@@ -142,12 +131,16 @@ export function SpaceInterior3d({
     <section className="mt-4 overflow-hidden border border-slate-200 bg-white shadow-inner">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700">
         <span>{spaceName} 3D 구조</span>
-        <span className="text-violet-600">모든 치수는 cm · 블록을 클릭해 들어가기</span>
+        <span className="text-violet-600">{showBounds
+          ? `가로 ${sceneLayout.widthCm}cm · 세로 ${sceneLayout.depthCm}cm · 높이 ${sceneLayout.heightCm}cm`
+          : '모든 치수는 cm · 블록을 클릭해 들어가기'}</span>
       </div>
       <div className="h-80">
         <Canvas frameloop="demand"
           camera={{
-            position: [sceneWidth / 2, cameraHeight, sceneDepth / 2 + 0.01],
+            position: showBounds
+              ? [sceneWidth / 2 + previewDistance, previewDistance, sceneDepth / 2 + previewDistance]
+              : [sceneWidth / 2, cameraHeight, sceneDepth / 2 + 0.01],
             fov: 42,
           }}
         >
@@ -155,12 +148,13 @@ export function SpaceInterior3d({
           <ambientLight intensity={1.35} />
           <directionalLight position={[4, 7, 4]} intensity={2.1} />
           <SceneFloor layout={sceneLayout} color={spaceColor} />
+          {showBounds && <ParentSpaceBounds dimensions={sceneLayout} />}
           {structures.map((structure) => (
             <SceneStructureMesh
               key={structure.id}
               structure={structure}
               isSelected={selectedStructureId === structure.id}
-              planOnly={planOnly}
+              planOnly={showBounds ? false : planOnly}
               onSelect={onStructureSelect ? () => onStructureSelect(structure) : undefined}
             />
           ))}
@@ -170,23 +164,23 @@ export function SpaceInterior3d({
               child={child}
               index={index}
               placement={placement}
-              planOnly={planOnly}
+              planOnly={showBounds ? false : planOnly}
               nestedChildren={nestedChildren.filter((nestedChild) => nestedChild.parentId === child.id)}
               onEnter={() => router.push(`/app/space/${child.id}`)}
               onEnterNested={(nestedChildId) => router.push(`/app/space/${nestedChildId}`)}
             />
           ))}
-          {!onStructureSelect ? (
+          {!onStructureSelect && !showBounds ? (
             <SavedViewControls
               center={[sceneWidth / 2, 0, sceneDepth / 2]}
               scale={Math.max(sceneWidth, sceneDepth)}
               defaultPosition={[sceneWidth / 2, cameraHeight, sceneDepth / 2 + 0.01]}
             />
           ) : <OrbitControls
-            target={[sceneWidth / 2, 0, sceneDepth / 2]}
+            target={showBounds ? previewTarget : [sceneWidth / 2, 0, sceneDepth / 2]}
             enablePan={false}
-            minDistance={3.5}
-            maxDistance={11}
+            minDistance={showBounds ? previewDistance * 0.2 : 3.5}
+            maxDistance={showBounds ? previewDistance * 6 : 11}
             minPolarAngle={0.08}
             maxPolarAngle={Math.PI / 2 - 0.08}
           />}
@@ -437,37 +431,13 @@ function NestedSpaceBlock({
 function SceneLabel({
   name,
   position,
-  fontSize = 0.13,
+  fontSize = 0.1,
 }: {
   name: string
   position: [number, number, number]
   fontSize?: number
 }) {
-  const horizontalPadding = fontSize * 1.5
-  const width = Math.max(
-    fontSize * 1.8,
-    Math.min(2.4, name.length * fontSize * 1.08 + horizontalPadding),
-  )
-  const height = fontSize * 2.2
-
-  return (
-    <group position={position} rotation={[-Math.PI / 2, 0, 0]}>
-      <mesh>
-        <planeGeometry args={[width, height]} />
-        <meshBasicMaterial color="#0f172a" transparent opacity={0.88} />
-      </mesh>
-      <Text
-        position={[0, 0, 0.01]}
-        fontSize={fontSize}
-        anchorX="center"
-        anchorY="middle"
-        color="#ffffff"
-        maxWidth={width - horizontalPadding}
-      >
-        {name}
-      </Text>
-    </group>
-  )
+  return <SpaceNameTag name={name} position={position} fontSize={fontSize} />
 }
 
 export function PlacementEditor({
@@ -486,6 +456,7 @@ export function PlacementEditor({
   onClose: () => void
 }) {
   const [message, setMessage] = useState<string | null>(null)
+  const [step, setStep] = useState<PlacementStep>(placement ? 'position' : 'size')
   const queryClient = useQueryClient()
   const {
     homeId,
@@ -497,9 +468,9 @@ export function PlacementEditor({
     x: placement?.xCm ?? 0,
     y: placement?.zCm ?? 0,
     z: placement?.yCm ?? 0,
-    width: placement?.widthCm ?? 100,
-    height: placement?.heightCm ?? 100,
-    depth: placement?.depthCm ?? 80,
+    width: placement?.widthCm ?? Math.min(100, bounds?.widthCm ?? 100),
+    height: placement?.heightCm ?? Math.min(100, bounds?.heightCm ?? 100),
+    depth: placement?.depthCm ?? Math.min(80, bounds?.depthCm ?? 80),
   })
   const overlappingSibling = siblingPlacements.find((sibling) => rectanglesOverlap(
     { x: draft.x, y: draft.y, width: draft.width, height: draft.depth },
@@ -531,6 +502,19 @@ export function PlacementEditor({
       ]
     : []
 
+  function goToPosition() {
+    const error = getPlacementSizeError(draft, bounds)
+    if (error) { setMessage(error); return }
+    if (ownSceneContent.some((entry) => entry.xCm + entry.widthCm > draft.width
+      || entry.zCm + entry.depthCm > draft.depth || entry.yCm + entry.heightCm > draft.height)) {
+      setMessage('안에 있는 공간 또는 벽·창문이 새 크기를 벗어납니다. 먼저 내부 배치를 조정해 주세요.')
+      return
+    }
+    setDraft({ ...draft, ...fitPlacementPosition(draft, draft, bounds!) })
+    setMessage(null)
+    setStep('position')
+  }
+
   async function removePlacement() {
     if (!placement || !window.confirm(`“${space.name}”의 3D 자리만 지울까요?\n공간 이름과 안의 물건은 그대로 남습니다.`)) {
       return
@@ -553,6 +537,7 @@ export function PlacementEditor({
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (step === 'size') { goToPosition(); return }
     if (!layoutId || !homeId) {
       setMessage('이 공간의 3D 장면을 먼저 만들어야 합니다.')
       return
@@ -629,55 +614,65 @@ export function PlacementEditor({
           <h3 className="font-semibold">{space.name} 3D 자리 정하기</h3>
           <button type="button" onClick={onClose} className="text-sm font-bold text-slate-500">닫기</button>
         </div>
-        {bounds && <PlacementHeightPreview bounds={bounds} siblings={siblingPlacements} draft={draft} color={space.colorHex ?? '#3b82f6'} />}
-        <p className="mt-3 text-xs font-semibold text-slate-700">바닥 위치 정하기 · 아래 격자를 드래그하세요</p>
+        <PlacementStepNavigation step={step} onSize={() => { setStep('size'); setMessage(null) }} onPosition={goToPosition} />
+        {bounds && <PlacementHeightPreview bounds={bounds} siblings={siblingPlacements}
+          draft={step === 'size' ? { ...draft, x: 0, y: 0, z: 0 } : draft}
+          color={space.colorHex ?? '#3b82f6'} />}
+        {step === 'size' && <p className="mt-2 text-xs text-slate-500">현재는 바닥 원점에서 크기만 비교합니다. 주변 객체와의 겹침은 배치 단계에서 확인합니다.</p>}
+        <p className="mt-3 text-xs font-semibold text-slate-700">{step === 'size' ? '가로·세로 크기 조절' : '놓을 위치 정하기'}</p>
         <PlanPlacementCanvas
+          key={step}
           draft={{
-            x: draft.x,
-            y: draft.y,
+            x: step === 'size' ? 0 : draft.x,
+            y: step === 'size' ? 0 : draft.y,
             width: draft.width,
             depth: draft.depth,
           }}
           bounds={bounds}
           siblings={siblingPlacements}
-          isOverlapping={Boolean(overlappingSibling)}
+          interaction={step}
+          isOverlapping={step === 'position' && Boolean(overlappingSibling)}
           onChange={(next) => setDraft({
             ...draft,
-            x: next.x,
-            y: next.y,
-            width: next.width,
-            depth: next.depth,
+            ...applyPlanEdit(step, draft, next),
           })}
         />
-        <p className="mt-3 text-xs font-bold text-slate-600">회색은 기존 공간, 보라·파랑은 벽·창문입니다. 연한 빨강은 현재 크기로 시작하면 겹치는 영역입니다.</p>
-        <div className="mt-2 grid gap-1 border-l-2 border-violet-300 bg-violet-50 px-2 py-2 text-xs leading-5 text-violet-950">
+        <p className="mt-3 text-xs font-bold text-slate-600">회색은 기존 공간, 보라·파랑은 벽·창문입니다.{step === 'position' && ' 연한 빨강은 현재 크기로 시작하면 겹치는 영역입니다.'}</p>
+        {step === 'position' && <div className="mt-2 grid gap-1 border-l-2 border-violet-300 bg-violet-50 px-2 py-2 text-xs leading-5 text-violet-950">
           <p><strong>현재 Y에서 가능한 X:</strong> {formatCoordinateRanges(availableXRanges)}</p>
           <p><strong>현재 X에서 가능한 Y:</strong> {formatCoordinateRanges(availableYRanges)}</p>
           {wallDistances && <p><strong>현재 배치에서 벽까지:</strong> 왼쪽 {wallDistances.left}cm · 오른쪽 {wallDistances.right}cm · 위 {wallDistances.top}cm · 아래 {wallDistances.bottom}cm</p>}
-        </div>
+        </div>}
         <p className="mt-2 text-xs font-bold text-slate-600">드래그는 10cm 격자에 맞춰집니다. 아래에서 1cm 단위로 정밀 조정할 수 있습니다.</p>
         <div className="mt-2 space-y-3">
-          <div className="grid grid-cols-2 gap-2">
+          {step === 'position' && <div className="grid grid-cols-2 gap-2">
             <p className="col-span-2 text-xs font-semibold text-slate-700">시작 위치 · X는 왼쪽→오른쪽, Y는 위쪽→아래쪽</p>
             {fields.slice(0, 2).map(([key, label, max]) => (
               <NumberInput key={key} label={`${label} · 최대 ${max ?? '?'}cm`} min={0} max={max} value={draft[key]} onChange={(value) => setDraft({ ...draft, [key]: value })} />
             ))}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
+          </div>}
+          {step === 'size' && <div className="grid grid-cols-2 gap-2">
             <p className="col-span-2 text-xs font-semibold text-slate-700">공간 크기 · 가로는 X, 세로는 Y</p>
             {fields.slice(2).map(([key, label, max]) => (
               <NumberInput key={key} label={`${label} · 최대 ${max ?? '?'}cm`} min={1} max={max} value={draft[key]} onChange={(value) => setDraft({ ...draft, [key]: value })} />
             ))}
-          </div>
+          </div>}
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <NumberInput label={`바닥에서의 높이 · 최대 ${bounds ? Math.max(0, bounds.heightCm - draft.height) : '?'}cm`} min={0} max={bounds ? Math.max(0, bounds.heightCm - draft.height) : undefined} value={draft.z} onChange={(z) => setDraft({ ...draft, z })} />
-          <NumberInput label={`공간 자체의 높이 · 최대 ${bounds ? Math.max(0, bounds.heightCm - draft.z) : '?'}cm`} min={1} max={bounds ? Math.max(0, bounds.heightCm - draft.z) : undefined} value={draft.height} onChange={(height) => setDraft({ ...draft, height })} />
+          {step === 'position'
+            ? <NumberInput label={`바닥에서의 높이 · 최대 ${bounds ? Math.max(0, bounds.heightCm - draft.height) : '?'}cm`} min={0} max={bounds ? Math.max(0, bounds.heightCm - draft.height) : undefined} value={draft.z} onChange={(z) => setDraft({ ...draft, z })} />
+            : <NumberInput label={`공간 자체의 높이 · 최대 ${bounds?.heightCm ?? '?'}cm`} min={1} max={bounds?.heightCm} value={draft.height} onChange={(height) => setDraft({ ...draft, height })} />}
         </div>
-        {overlappingSibling && <p className="mt-2 text-xs font-bold text-rose-700">현재 위치는 “{overlappingSibling.name}”과 겹칩니다.</p>}
+        {step === 'position' && <p className="mt-2 text-xs text-slate-600">확정한 크기: 가로 {draft.width}cm · 세로 {draft.depth}cm · 자체 높이 {draft.height}cm</p>}
+        {step === 'position' && overlappingSibling && <p className="mt-2 text-xs font-bold text-rose-700">현재 위치는 “{overlappingSibling.name}”과 겹칩니다.</p>}
         {message && <p className="mt-2 text-xs font-bold text-rose-700">{message}</p>}
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {placement && (
+          {step === 'position' && <button type="button" onClick={() => { setStep('size'); setMessage(null) }} className="rounded-xl border border-slate-200 py-2 text-sm font-semibold text-slate-700">크기 수정</button>}
+          <button className="rounded-xl bg-violet-600 py-2 text-sm font-semibold text-white">
+            {step === 'size' ? '다음 · 배치하기' : '저장'}
+          </button>
+        </div>
+        {placement && step === 'position' && (
             <button
               type="button"
               onClick={() => void removePlacement()}
@@ -686,10 +681,6 @@ export function PlacementEditor({
               3D 배치 지우기
             </button>
           )}
-          <button className="rounded-xl bg-violet-600 py-2 text-sm font-semibold text-white">
-            저장
-          </button>
-        </div>
       </form>
     </div>,
     document.body,
@@ -724,13 +715,18 @@ export function PlacementHeightPreview({ bounds, siblings, draft, color }: {
 
   return (
     <div className="mt-3 overflow-hidden border border-slate-200 bg-slate-50">
-      <p className="px-3 py-2 text-xs font-semibold text-slate-700">3D 미리보기 · 드래그로 회전</p>
+      <p className="px-3 py-2 text-xs font-semibold leading-5 text-slate-700">
+        3D 미리보기 · 드래그로 회전
+        <br />
+        바깥 테두리: 가로 {bounds.widthCm}cm · 세로 {bounds.depthCm}cm · 높이 {bounds.heightCm}cm
+      </p>
       <div className="h-56">
         <Canvas frameloop="demand" camera={{ position: [width / 2 + distance, distance, depth / 2 + distance], fov: 45 }}>
           <color attach="background" args={['#f8fafc']} />
           <ambientLight intensity={1.4} />
           <directionalLight position={[4, 8, 5]} intensity={2} />
           <SceneFloor layout={bounds} />
+          <ParentSpaceBounds dimensions={bounds} />
           {blocks.map((block) => (
             <mesh key={block.id} position={toSceneCenter({ xCm: block.xCm, elevationCm: block.yCm, planYCm: block.zCm, widthCm: block.widthCm, heightCm: block.heightCm, depthCm: block.depthCm })}>
               <boxGeometry args={[Math.max(0.01, block.widthCm * centimetresToScene), Math.max(0.01, block.heightCm * centimetresToScene), Math.max(0.01, block.depthCm * centimetresToScene)]} />
@@ -741,7 +737,11 @@ export function PlacementHeightPreview({ bounds, siblings, draft, color }: {
           <OrbitControls target={target} enablePan={false} minDistance={1} maxDistance={distance * 4} />
         </Canvas>
       </div>
-      <p className="px-3 py-2 text-xs text-slate-600">바닥에서 {draft.z}cm · 공간 높이 {draft.height}cm · 위쪽 끝 {draft.z + draft.height}cm</p>
+      <p className="px-3 py-2 text-xs leading-5 text-slate-600">
+        아랫면: 바닥에서 {draft.z}cm · 자체 높이: {draft.height}cm · 윗면: 바닥에서 {draft.z + draft.height}cm
+        <br />
+        바깥 공간 높이: {bounds.heightCm}cm · 윗면 위 남은 높이: {bounds.heightCm - draft.z - draft.height}cm
+      </p>
     </div>
   )
 }
@@ -752,68 +752,113 @@ export function PlanPlacementCanvas({
   siblings,
   isOverlapping,
   onChange,
+  interaction = 'all',
 }: {
   draft: PlanPlacementDraft
   bounds: SceneLayoutData | null
   siblings: SceneSiblingPlacement[]
   isOverlapping: boolean
   onChange: (draft: PlanPlacementDraft) => void
+  interaction?: PlacementStep | 'all'
 }) {
   const canvasRef = useRef<HTMLDivElement>(null)
-  const startRef = useRef<{ x: number; y: number } | null>(null)
+  const gestureRef = useRef<{
+    mode: PlanGesture
+    start: PlanPoint
+    clientX: number
+    clientY: number
+    original: PlanPlacementDraft
+    pointerId: number
+    moved: boolean
+  } | null>(null)
+  const [activeGesture, setActiveGesture] = useState<PlanGesture | null>(null)
+  const [guides, setGuides] = useState<{ x?: number; y?: number }>({})
   const widthCm = bounds?.widthCm ?? 600
   const depthCm = bounds?.depthCm ?? 400
   const gridStepCm = 10
   const xTicks = getRulerTicks(widthCm)
   const yTicks = getRulerTicks(depthCm)
 
-  function point(event: PointerEvent<HTMLDivElement>) {
+  function point(event: PointerEvent<HTMLElement>) {
     const rect = canvasRef.current!.getBoundingClientRect()
-    const rawX = (event.clientX - rect.left) / rect.width * widthCm
-    const rawY = (event.clientY - rect.top) / rect.height * depthCm
-
     return {
-      x: snapToGrid(rawX, widthCm, gridStepCm),
-      y: snapToGrid(rawY, depthCm, gridStepCm),
+      x: (event.clientX - rect.left) / rect.width * widthCm,
+      y: (event.clientY - rect.top) / rect.height * depthCm,
     }
   }
 
-  function start(event: PointerEvent<HTMLDivElement>) {
-    event.currentTarget.setPointerCapture(event.pointerId)
-    startRef.current = point(event)
+  function start(event: PointerEvent<HTMLElement>, mode: PlanGesture = 'draw') {
+    if (event.button !== 0 || gestureRef.current) return
+    event.preventDefault()
+    event.stopPropagation()
+    if (interaction === 'size' && mode !== 'se') return
+    if (interaction === 'position' && mode !== 'move') return
+    canvasRef.current!.setPointerCapture(event.pointerId)
+    gestureRef.current = {
+      mode, start: point(event), clientX: event.clientX, clientY: event.clientY,
+      original: { ...draft }, pointerId: event.pointerId, moved: false,
+    }
+    setActiveGesture(mode)
+    setGuides({})
   }
 
-  function end(event: PointerEvent<HTMLDivElement>) {
-    if (!startRef.current) {
-      return
+  function startResize(event: PointerEvent<HTMLDivElement>) {
+    const corner = event.currentTarget.dataset.corner
+    if (corner === 'nw' || corner === 'ne' || corner === 'sw' || corner === 'se') {
+      start(event, corner)
     }
+  }
 
-    const next = point(event)
-    const minimumWidth = Math.min(gridStepCm, widthCm)
-    const minimumDepth = Math.min(gridStepCm, depthCm)
-    const x = Math.min(
-      Math.min(startRef.current.x, next.x),
-      widthCm - minimumWidth,
-    )
-    const y = Math.min(
-      Math.min(startRef.current.y, next.y),
-      depthCm - minimumDepth,
-    )
-
-    onChange({
-      ...draft,
-      x,
-      y,
-      // 드래그 결과도 10cm 단위라는 약속을 지킨다. 한 칸보다 짧게 클릭해도
-      // 1cm짜리 예외 영역을 만들지 않고 최소 한 칸(10cm)으로 만든다.
-      width: Math.min(widthCm - x, Math.max(minimumWidth, Math.abs(next.x - startRef.current.x))),
-      depth: Math.min(depthCm - y, Math.max(minimumDepth, Math.abs(next.y - startRef.current.y))),
+  function move(event: PointerEvent<HTMLElement>) {
+    const gesture = gestureRef.current
+    if (!gesture || event.pointerId !== gesture.pointerId) return
+    if (!gesture.moved && Math.hypot(event.clientX - gesture.clientX, event.clientY - gesture.clientY) < 3) return
+    gesture.moved = true
+    const rect = canvasRef.current!.getBoundingClientRect()
+    const result = dragPlanRectangle({
+      mode: gesture.mode,
+      original: gesture.original,
+      start: gesture.start,
+      point: point(event),
+      bounds: { width: widthCm, depth: depthCm },
+      siblings: interaction === 'size' ? [] : siblings.map((sibling) => ({ x: sibling.xCm, y: sibling.zCm, width: sibling.widthCm, depth: sibling.depthCm })),
+      tolerance: { x: Math.min(10, 8 / rect.width * widthCm), y: Math.min(10, 8 / rect.height * depthCm) },
     })
-    startRef.current = null
+    onChange(interaction === 'all' ? result.rectangle : applyPlanEdit(interaction, gesture.original, result.rectangle))
+    setGuides(result.guides)
+  }
+
+  function finish(event: PointerEvent<HTMLElement>, cancelled = false) {
+    const gesture = gestureRef.current
+    if (!gesture || event.pointerId !== gesture.pointerId) return
+    if (cancelled) onChange(gesture.original)
+    else move(event)
+    gestureRef.current = null
+    setActiveGesture(null)
+    setGuides({})
+    if (canvasRef.current?.hasPointerCapture(event.pointerId)) {
+      canvasRef.current.releasePointerCapture(event.pointerId)
+    }
   }
 
   return (
-    <div className="mt-4 grid grid-cols-[1.75rem_minmax(0,1fr)] grid-rows-[1.25rem_auto]">
+    <div className="mt-4">
+      <p className="mb-2 text-xs leading-5 text-slate-600">
+        {interaction === 'size' ? '오른쪽 아래 모서리를 끌어 가로·세로 크기를 정하세요. 크기만 바뀌며 위치는 다음 단계에서 정합니다.'
+          : interaction === 'position' ? '색칠된 영역 또는 이동 손잡이를 끌어 놓을 위치를 정하세요. 크기는 바뀌지 않습니다.'
+            : '색칠된 영역을 끌어 이동하고, 네 모서리 손잡이를 끌어 크기를 조절하세요. 빈 곳을 드래그하면 새 영역으로 다시 그립니다.'}
+      </p>
+      {interaction !== 'size' && <div className="mb-2 flex items-center gap-2">
+        <button
+          type="button"
+          onPointerDown={(event) => start(event, 'move')}
+          className="inline-flex touch-none cursor-grab select-none items-center gap-1 whitespace-nowrap rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 active:cursor-grabbing"
+        >
+          <Move size={14} aria-hidden="true" /> 이동 손잡이
+        </button>
+        <span className="text-xs text-slate-500">얇거나 작은 영역은 이 손잡이를 끌어 이동하세요.</span>
+      </div>}
+      <div className="grid grid-cols-[1.75rem_minmax(0,1fr)] grid-rows-[1.25rem_auto]">
       <div className="border-b border-r border-violet-200 bg-violet-50 text-center text-[9px] font-semibold leading-5 text-violet-800">
         cm
       </div>
@@ -825,7 +870,7 @@ export function PlanPlacementCanvas({
             style={{ left: `${value / widthCm * 100}%` }}
             className="absolute top-0 h-full -translate-x-1/2"
           >
-            <span className="absolute top-0.5 -translate-x-1/2 text-[9px] font-bold text-violet-800">
+            <span className="absolute top-0.5 -translate-x-1/2 whitespace-nowrap text-[9px] font-bold text-violet-800">
               {value}
             </span>
             <span className="absolute bottom-0 h-1.5 border-l border-violet-400" />
@@ -840,7 +885,7 @@ export function PlanPlacementCanvas({
             style={{ top: `${value / depthCm * 100}%` }}
             className="absolute left-0 w-full -translate-y-1/2"
           >
-            <span className="absolute left-0.5 -translate-y-1/2 text-[9px] font-bold text-violet-800">
+            <span className="absolute left-0.5 -translate-y-1/2 whitespace-nowrap text-[9px] font-bold text-violet-800">
               {value}
             </span>
             <span className="absolute right-0 top-0 w-1.5 border-t border-violet-400" />
@@ -849,15 +894,24 @@ export function PlanPlacementCanvas({
       </div>
       <div
         ref={canvasRef}
-        onPointerDown={start}
-        onPointerUp={end}
+        onPointerDown={(event) => start(event, interaction === 'position' ? 'move' : 'draw')}
+        onPointerMove={move}
+        onPointerUp={(event) => finish(event)}
+        onPointerCancel={(event) => finish(event, true)}
+        onLostPointerCapture={(event) => finish(event, true)}
         style={{
           aspectRatio: `${widthCm} / ${depthCm}`,
           backgroundSize: `${gridStepCm / widthCm * 100}% ${gridStepCm / depthCm * 100}%`,
+          touchAction: 'none',
         }}
-        className="relative w-full cursor-crosshair overflow-hidden border border-violet-200 bg-[linear-gradient(#dbeafe_1px,transparent_1px),linear-gradient(90deg,#dbeafe_1px,transparent_1px)]"
+        className={`relative w-full select-none overflow-hidden border border-violet-200 bg-[linear-gradient(#dbeafe_1px,transparent_1px),linear-gradient(90deg,#dbeafe_1px,transparent_1px)] ${
+          activeGesture === 'move' ? 'cursor-grabbing'
+            : activeGesture === 'nw' || activeGesture === 'se' ? 'cursor-nwse-resize'
+              : activeGesture === 'ne' || activeGesture === 'sw' ? 'cursor-nesw-resize'
+                : interaction === 'size' ? 'cursor-default' : interaction === 'position' ? 'cursor-grab' : 'cursor-crosshair'
+        }`}
       >
-      {siblings.map((sibling) => {
+      {interaction !== 'size' && siblings.map((sibling) => {
         const blockedLeft = Math.max(0, sibling.xCm - draft.width)
         const blockedTop = Math.max(0, sibling.zCm - draft.depth)
         const blockedRight = Math.min(widthCm, sibling.xCm + sibling.widthCm)
@@ -890,17 +944,38 @@ export function PlanPlacementCanvas({
           <span className="max-w-full truncate">{sibling.name}</span>
         </div>
       ))}
-      <div style={{ left: `${draft.x / widthCm * 100}%`, top: `${draft.y / depthCm * 100}%`, width: `${draft.width / widthCm * 100}%`, height: `${draft.depth / depthCm * 100}%` }} className={`pointer-events-none absolute border-2 ${isOverlapping ? 'border-rose-600 bg-rose-500/30' : 'border-violet-600 bg-violet-500/30'}`} />
+      <div
+        onPointerDown={(event) => start(event, 'move')}
+        style={{ left: `${draft.x / widthCm * 100}%`, top: `${draft.y / depthCm * 100}%`, width: `${draft.width / widthCm * 100}%`, height: `${draft.depth / depthCm * 100}%` }}
+        className={`absolute z-10 border-2 ${interaction === 'size' ? 'cursor-default' : activeGesture === 'move' ? 'cursor-grabbing' : 'cursor-grab'} ${isOverlapping ? 'border-rose-600 bg-rose-500/30' : 'border-violet-600 bg-violet-500/30'}`}
+        aria-label={interaction === 'size' ? '크기 조절 영역' : '편집 중인 영역 · 드래그로 이동'}
+      >
+        {interaction !== 'position' && ([
+          ['nw', '왼쪽 위', 'left-0 top-0', 'cursor-nwse-resize'],
+          ['ne', '오른쪽 위', 'right-0 top-0', 'cursor-nesw-resize'],
+          ['sw', '왼쪽 아래', 'left-0 bottom-0', 'cursor-nesw-resize'],
+          ['se', '오른쪽 아래', 'right-0 bottom-0', 'cursor-nwse-resize'],
+        ] as const).map(([corner, label, location, cursor]) => (
+          (interaction !== 'size' || corner === 'se') && <div key={corner} role="presentation" title={`${label} 모서리 · 드래그로 크기 조절`}
+            data-corner={corner}
+            onPointerDown={startResize}
+            className={`absolute z-20 grid size-6 place-items-center ${location} ${cursor}`}
+          >
+            <span className="pointer-events-none size-2.5 border border-blue-700 bg-white shadow-sm" />
+          </div>
+        ))}
       </div>
+      {guides.x !== undefined && <div className="pointer-events-none absolute inset-y-0 z-30 border-l-2 border-dashed border-emerald-500" style={{ left: `${guides.x / widthCm * 100}%` }} />}
+      {guides.y !== undefined && <div className="pointer-events-none absolute inset-x-0 z-30 border-t-2 border-dashed border-emerald-500" style={{ top: `${guides.y / depthCm * 100}%` }} />}
+      </div>
+      </div>
+      <p className="mt-2 text-xs leading-5 text-slate-600" role="status">
+        {guides.x !== undefined || guides.y !== undefined ? '초록 점선: 가까운 경계에 맞췄습니다. ' : ''}
+        {interaction === 'size' ? '크기 조절은 10cm 단위입니다. 숫자로는 1cm 단위로 조절할 수 있습니다.'
+          : '이동은 10cm 단위, 가까운 벽·공간 경계에는 정확히 붙습니다. 숫자로는 1cm 단위로 조절할 수 있습니다.'}
+      </p>
     </div>
   )
-}
-
-function snapToGrid(value: number, maximum: number, stepCm: number) {
-  const clampedValue = Math.max(0, Math.min(maximum, value))
-  const snappedValue = Math.round(clampedValue / stepCm) * stepCm
-
-  return Math.max(0, Math.min(maximum, snappedValue))
 }
 
 function getRulerTicks(maximumCm: number) {
