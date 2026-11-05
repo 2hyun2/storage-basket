@@ -18,7 +18,7 @@ type JoinedHome = {
   role: 'owner' | 'member'
 }
 
-export function CommunityManager() {
+export function CommunityManager({ initialInviteCode }: { initialInviteCode: string }) {
   const { home, members, isLoading } = useSupabaseInventory()
   const queryClient = useQueryClient()
   const joinedHomesQuery = useQuery({
@@ -27,7 +27,7 @@ export function CommunityManager() {
     refetchOnWindowFocus: true,
   })
   const [editedName, setEditedName] = useState<string | null>(null)
-  const [joinCode, setJoinCode] = useState('')
+  const [joinCode, setJoinCode] = useState(initialInviteCode)
   const [joinPreview, setJoinPreview] = useState<InvitePreview | null>(null)
   const [isJoinConfirmed, setIsJoinConfirmed] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -355,7 +355,7 @@ async function refreshHomes(queryClient: ReturnType<typeof useQueryClient>) {
 }
 
 async function copyInviteLink(inviteCode: string, setMessage: (message: string) => void) {
-  const inviteLink = new URL('/signup', window.location.origin)
+  const inviteLink = new URL('/app/community', window.location.origin)
   inviteLink.searchParams.set('invite', inviteCode)
 
   try {

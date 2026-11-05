@@ -2,7 +2,15 @@ import Link from 'next/link'
 import { ArrowLeft, UsersRound } from 'lucide-react'
 import { CommunityManager } from '@/components/community/community-manager'
 
-export default function CommunityPage() {
+type CommunityPageProps = {
+  searchParams: Promise<{ invite?: string | string[] }>
+}
+
+export default async function CommunityPage({ searchParams }: CommunityPageProps) {
+  const { invite } = await searchParams
+  const code = typeof invite === 'string' ? invite.trim().toUpperCase() : ''
+  const initialInviteCode = code.length <= 20 ? code : ''
+
   return (
     <main className="min-h-dvh bg-[#f5f8fd] px-2 py-4 text-slate-950 sm:px-4 sm:py-4">
       <section className="mx-auto max-w-3xl">
@@ -15,7 +23,7 @@ export default function CommunityPage() {
           <h1 className="mt-2 text-3xl font-semibold tracking-normal sm:text-3xl">함께 쓰는 공간</h1>
           <p className="mt-2 text-sm leading-6 text-slate-500">같은 공동체 구성원은 공간과 물건 기록을 함께 관리합니다.</p>
         </header>
-        <div className="mt-4"><CommunityManager /></div>
+        <div className="mt-4"><CommunityManager key={initialInviteCode} initialInviteCode={initialInviteCode} /></div>
       </section>
     </main>
   )

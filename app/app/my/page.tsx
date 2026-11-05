@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   Bell,
   ChevronRight,
-  KeyRound,
   ShieldCheck,
   UserRound,
 } from 'lucide-react'
@@ -57,7 +56,6 @@ export default async function MyPage() {
         <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-4">
           <SectionHeading icon={ShieldCheck} title="로그인 및 보안" description="계정에 접속하는 방법을 관리합니다." />
           <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-100">
-            <SettingRow href="/app/my/password" icon={KeyRound} label="비밀번호" description="현재 비밀번호를 새 비밀번호로 변경" action="변경" />
             <SettingRow href="/app/my/session" icon={ShieldCheck} label="로그인 상태" description="이 기기에서 로그인 유지 여부를 관리" action="변경" />
           </div>
         </section>
