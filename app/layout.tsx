@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   title: '우리집 공간록',
   description: '내 공간을 직접 만들고, 물건의 자리를 기억하세요. 3D로 꾸미며 함께 정리하는 우리집 공간록.',
   applicationName: '우리집 공간록',
+  verification: {
+    google: 'dSwSRoTf4R8MEKAkLJDg6a5Pf1pHauFsCLGr1NFMZak',
+  },
   openGraph: {
     type: 'website',
     locale: 'ko_KR',
