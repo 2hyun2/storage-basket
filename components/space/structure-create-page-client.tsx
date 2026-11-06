@@ -12,16 +12,16 @@ export function StructureCreatePageClient({ locationId }: { locationId: string }
   const location = spaces.find((space) => space.id === locationId) ?? null
 
   if (isLoading) {
-    return <main className="min-h-dvh bg-[#f5f8fd] px-4 py-4 text-sm font-bold text-slate-500 sm:px-4 sm:py-4">구조 데이터를 불러오는 중입니다.</main>
+    return <main className="min-h-dvh bg-[#f5f8fd] px-2 py-4 text-sm font-bold text-slate-500 sm:px-4 sm:py-4">구조 데이터를 불러오는 중입니다.</main>
   }
 
   if (error || !location) {
-    return <main className="min-h-dvh bg-[#f5f8fd] px-4 py-4 text-sm font-bold text-rose-700 sm:px-4 sm:py-4">공간을 불러오지 못했습니다.</main>
+    return <main className="min-h-dvh bg-[#f5f8fd] px-2 py-4 text-sm font-bold text-rose-700 sm:px-4 sm:py-4">공간을 불러오지 못했습니다.</main>
   }
 
   return (
-    <main className="min-h-dvh bg-[#f5f8fd] px-4 py-4 text-slate-950 sm:px-4 sm:py-4">
-      <section className="mx-auto max-w-2xl">
+    <main className="min-h-dvh bg-[#f5f8fd] px-2 py-4 text-slate-950 sm:px-4 sm:py-4">
+      <section className="mx-auto max-w-5xl">
         <Link href={`/app/space/${location.id}`} className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-500 hover:text-violet-700">
           <ArrowLeft size={17} />
           {location.name}으로 돌아가기

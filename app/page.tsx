@@ -59,7 +59,7 @@ export default async function HomePage() {
           <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,.06)_1px,transparent_1px)] bg-[size:24px_24px] opacity-30" />
         </div>
 
-        <nav className="mx-auto flex max-w-[1440px] items-center justify-between font-bold">
+        <nav className="mx-auto flex max-w-5xl items-center justify-between font-bold">
           <a href="#top" className="flex items-center gap-2 " aria-label="우리집 공간록 첫 화면">
             <span className="flex items-center justify-center size-10 text-violet-700 bg-white rounded-lg">
               <BrandIcon size={30} />
@@ -69,7 +69,7 @@ export default async function HomePage() {
           <a href="/login" className="text-sm text-white border bg-transparent border-white px-3 py-2 rounded-full transition-all duration-300 ease-in-out hover:bg-violet-600">로그인</a>
         </nav>
 
-        <div id="top" className="mx-auto max-w-[1440px] pt-8">
+        <div id="top" className="mx-auto max-w-5xl pt-8">
           <p className="inline-flex text-sm bg-violet-100/20 border border-violet-100/40 px-3 py-2 rounded-2xl">3D로 꾸미며 정리하는 우리 집 기록</p>
           <h1 className="text-3xl sm:text-5xl leading-tight font-semibold mt-4">
             내 공간을 직접 만들고,
@@ -126,7 +126,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="features" className="mx-auto max-w-[1440px] px-4 py-16 sm:px-6">
+      <section id="features" className="mx-auto max-w-5xl px-2 py-16 sm:px-0">
         <p className="text-sm font-bold text-violet-600">SIMPLE, TOGETHER</p>
         <h2 className="mt-2 max-w-lg text-3xl font-extrabold leading-tight tracking-[-0.05em] sm:text-4xl">찾고, 함께 정리하고,<br />기억하는 공간.</h2>
         <div className="mt-8 grid gap-3 md:grid-cols-3">
@@ -146,7 +146,7 @@ export default async function HomePage() {
       </section>
 
       <section className="bg-violet-600 px-4 py-8 text-white sm:px-4">
-        <div className="mx-auto max-w-[1440px]">
+        <div className="mx-auto max-w-5xl">
           <p className="text-sm font-semibold text-violet-200">내 공간을 더 쉽게 기억하세요</p>
           <h2 className="mt-3 text-3xl font-extrabold tracking-[-0.05em]">이제 수납부터 기록해 볼까요?</h2>
           <a href="/signup" className="mt-4 inline-block rounded-2xl bg-white px-4 py-3 text-sm font-bold text-violet-700 shadow-lg shadow-violet-900/20 transition hover:-translate-y-0.5">무료로 시작하기</a>

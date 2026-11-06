@@ -1,7 +1,8 @@
 'use client'
 
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { Box, ChevronRight, History } from 'lucide-react'
+import { ArrowRight, Box, ChevronRight, History } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getDefaultSpaceColor, normalizeSpaceColor } from '@/lib/space/colors'
@@ -67,8 +68,16 @@ export function CreateRegistrationForm() {
 
   if (!isLoading && !homeLayout) {
     return (
-      <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-4 text-sm leading-6 text-violet-900">
-        공간을 만들기 전에 먼저 공간 화면에서 집 전체 크기를 설정해 주세요.
+      <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 text-violet-950">
+        <p className="text-base font-semibold">먼저 우리 집 크기를 정해 주세요</p>
+        <p className="mt-1 text-sm leading-6 text-violet-800">집의 가로·세로·높이가 있어야 방과 수납공간을 알맞은 크기로 배치할 수 있어요.</p>
+        <Link
+          href="/app/space#home-layout"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-violet-700"
+        >
+          집 크기 설정으로 이동
+          <ArrowRight size={16} />
+        </Link>
       </div>
     )
   }

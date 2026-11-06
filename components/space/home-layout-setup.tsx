@@ -70,7 +70,7 @@ export function HomeLayoutSetup() {
 
   if (homeLayout && !isEditing) {
     return (
-      <section className="mt-4 flex flex-col justify-between gap-3 border border-violet-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
+      <section id="home-layout" className="mt-4 flex flex-col justify-between gap-3 border border-violet-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
         <div className="flex items-start gap-3">
           <span className="grid size-10 place-items-center rounded-xl bg-violet-100 text-violet-700"><House size={20} /></span>
           <div>
@@ -91,7 +91,7 @@ export function HomeLayoutSetup() {
   }
 
   return (
-    <section className="mt-4 rounded-xl border border-violet-200 bg-white p-4 shadow-sm sm:p-4">
+    <section id="home-layout" className="mt-4 rounded-xl border border-violet-200 bg-white p-4 shadow-sm sm:p-4">
       <div className="flex items-start gap-3">
         <span className="grid size-10 place-items-center rounded-xl bg-violet-100 text-violet-700"><House size={20} /></span>
         <div>
