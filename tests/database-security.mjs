@@ -62,6 +62,16 @@ test('전체 마이그레이션과 공동체 격리·계층·배치·기록 검�
 
     // 실제 API 역할로 RLS 확인. 다른 공동체 UUID를 알아도 조회/수정할 수 없다.
     await db.exec('grant usage on schema public, auth to authenticated; grant select, insert, update, delete on all tables in schema public to authenticated; set role authenticated;')
+    const renamedProfile = await db.query(
+      "update profiles set display_name='새 표시 이름' where id=$1 returning display_name", [userA],
+    )
+    assert.equal(renamedProfile.rows[0].display_name, '새 표시 이름')
+    const inviteCode = (await db.query('select invite_code from homes where id=$1', [a])).rows[0].invite_code
+    const invitePreview = (await db.query('select * from preview_home_invite($1)', [inviteCode])).rows[0]
+    assert.equal(invitePreview.owner_name, '새 표시 이름')
+    assert.equal((await db.query("update profiles set display_name='다른 사람' where id=$1 returning id", [userB])).rows.length, 0)
+    await assert.rejects(db.query("update profiles set display_name='한' where id=$1", [userA]), /check constraint/)
+    await assert.rejects(db.query('update profiles set display_name=$1 where id=$2', ['가'.repeat(31), userA]), /check constraint/)
     assert.equal((await db.query('select id from locations where home_id=$1', [b])).rows.length, 0)
     assert.equal((await db.query("update locations set name='변조' where id=$1 returning id", [foreign])).rows.length, 0)
     await assert.rejects(db.query('select activity_location_snapshot($1)', [foreign]), /permission denied/)

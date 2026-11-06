@@ -21,15 +21,15 @@ export function SessionPreferenceForm({ persistSession, updated, error }: Sessio
         <SessionChoice
           checked={preference === 'session'}
           value="session"
-          title="브라우저를 닫으면 로그아웃"
-          description="공용 기기에서 권장되는 설정입니다."
+          title="브라우저 사용 중에만 유지"
+          description="브라우저의 세션 복원 설정에 따라 다시 열었을 때도 로그인이 유지될 수 있습니다."
           onChange={setPreference}
         />
         <SessionChoice
           checked={preference === 'persistent'}
           value="persistent"
-          title="로그인 상태 유지"
-          description="다음에 브라우저를 열어도 로그인 상태를 유지합니다."
+          title="브라우저를 다시 열어도 유지"
+          description="개인 기기에서 편리하게 이용할 수 있습니다. 인증이 만료되면 다시 로그인해야 합니다."
           onChange={setPreference}
         />
       </div>

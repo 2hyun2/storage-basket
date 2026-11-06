@@ -6,15 +6,11 @@ import {
   ShieldCheck,
   UserRound,
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { getCurrentProfile } from '@/lib/auth/current-profile'
+import { DisplayNameForm } from '@/components/display-name-form'
 
 export default async function MyPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: profile } = user
-    ? await supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle()
-    : { data: null }
-  const displayName = profile?.display_name ?? user?.user_metadata.display_name ?? user?.email?.split('@')[0] ?? '사용자'
+  const { user, displayName } = await getCurrentProfile()
   const email = user?.email ?? ''
   const initial = displayName.slice(0, 1)
 
@@ -49,14 +45,14 @@ export default async function MyPage() {
           </div>
 
           <div className="divide-y divide-slate-100">
-            <SettingRow icon={UserRound} label="표시 이름" description={displayName} action="수정" />
+            <DisplayNameForm displayName={displayName} />
           </div>
         </section>
 
         <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-4">
           <SectionHeading icon={ShieldCheck} title="로그인 및 보안" description="계정에 접속하는 방법을 관리합니다." />
           <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-100">
-            <SettingRow href="/app/my/session" icon={ShieldCheck} label="로그인 상태" description="이 기기에서 로그인 유지 여부를 관리" action="변경" />
+            <SettingRow href="/app/my/session" icon={ShieldCheck} label="로그인 유지" description="이 브라우저에서 우리집 공간록의 로그인 유지 여부를 관리" action="변경" />
           </div>
         </section>
 

@@ -26,18 +26,18 @@ export default async function SessionPage({ searchParams }: SessionPageProps) {
             <ShieldCheck size={21} />
           </span>
           <p className="mt-4 text-sm font-bold text-violet-600">로그인 및 보안</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-normal">로그인 상태</h1>
+          <h1 className="mt-2 text-3xl font-semibold tracking-normal">이 브라우저의 로그인 유지</h1>
           <p className="mt-3 text-sm leading-6 text-slate-500">
-            이 기기에서 브라우저를 닫은 뒤에도 로그인 상태를 유지할지 선택합니다.
+            이 브라우저에서 우리집 공간록의 로그인 상태를 유지할지 선택합니다.
           </p>
 
           <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
             <span className="flex items-center gap-2 text-sm font-bold text-slate-700">
               <Laptop size={17} className="text-violet-700" />
-              현재 사용 중인 기기
+              현재 사용 중인 브라우저
             </span>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              다른 기기에 로그인된 세션 목록과 전체 로그아웃은 다음 단계에서 추가합니다.
+              Google 계정의 로그인 상태는 Google에서 관리합니다. 공용 기기에서는 사용 후 우리집 공간록에서 직접 로그아웃해 주세요.
             </p>
           </div>
 

@@ -19,7 +19,7 @@ function load(path) {
 
 const { sessionCookieOptions } = load('../lib/auth/session.ts')
 const { readAllPages, cachedRows } = load('../lib/space/paged-query.ts')
-const { invalidateHomeInventory } = load('../lib/space/query-cache.ts')
+const { invalidateHomeInventory, refreshDisplayName } = load('../lib/space/query-cache.ts')
 const { toSceneCenter, getSpacePreviewFrame } = load('../lib/space/scene-coordinates.ts')
 const { applyPlanEdit, fitPlacementPosition, getPlacementSizeError } = load('../lib/space/placement-workflow.ts')
 
@@ -139,6 +139,51 @@ test('같은 공동체 조회 재사용, 다른 공동체 캐시 분리', async 
     assert.equal(reads, initial)
     await cachedRows(client, 'items', 'home-b', page)
     assert.ok(reads > initial)
+  } finally { client.clear() }
+})
+
+test('표시 이름 저장은 모든 공동체 프로필과 구성원 이름을 갱신하고 늦게 온 이전 응답을 차단', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  try {
+    const oldProfile = { id: 'me', display_name: '이전 이름' }
+    const otherProfile = { id: 'other', display_name: '다른 구성원' }
+    client.setQueryData(['inventory-table', 'profiles', 'a'], [oldProfile, otherProfile])
+    client.setQueryData(['inventory-table', 'profiles', 'b'], [oldProfile])
+    const home = { name: '우리 공동체' }
+    const items = [{ id: 'item' }]
+    client.setQueryData(['home-inventory'], {
+      home, items,
+      members: [
+        { userId: 'me', displayName: '이전 이름', role: 'owner' },
+        { userId: 'other', displayName: '다른 구성원', role: 'member' },
+      ],
+    })
+    let finishOldRequest
+    const oldRequest = client.fetchQuery({
+      queryKey: ['inventory-table', 'profiles', 'a'],
+      queryFn: ({ signal }) => new Promise((resolve) => {
+        signal.throwIfAborted()
+        finishOldRequest = resolve
+      }),
+      staleTime: 0,
+    }).catch(() => {})
+
+    await refreshDisplayName(client, 'me', '새 이름')
+    finishOldRequest([oldProfile])
+    await oldRequest
+
+    for (const homeId of ['a', 'b']) {
+      const profiles = client.getQueryData(['inventory-table', 'profiles', homeId])
+      assert.equal(profiles.find((profile) => profile.id === 'me').display_name, '새 이름')
+    }
+    const inventory = client.getQueryData(['home-inventory'])
+    assert.deepEqual(inventory.members, [
+      { userId: 'me', displayName: '새 이름', role: 'owner' },
+      { userId: 'other', displayName: '다른 구성원', role: 'member' },
+    ])
+    assert.deepEqual(inventory.home, home)
+    assert.deepEqual(inventory.items, items)
+    assert.deepEqual(client.getQueryData(['inventory-table', 'profiles', 'a'])[1], otherProfile)
   } finally { client.clear() }
 })
 
