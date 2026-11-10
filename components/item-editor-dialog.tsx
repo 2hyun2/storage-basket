@@ -3,6 +3,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Package, X } from 'lucide-react'
+import { SpaceRequiredNotice } from '@/components/space/space-required-notice'
 import type { LocalItem } from '@/lib/space/local-items'
 import { invalidateHomeInventory, useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import { createClient } from '@/lib/supabase/client'
@@ -19,7 +20,7 @@ export function ItemEditorDialog({
   onClose,
 }: ItemEditorDialogProps) {
   const queryClient = useQueryClient()
-  const { homeId, items, spaces } = useSupabaseInventory()
+  const { homeId, items, spaces, isLoading, error: inventoryError } = useSupabaseInventory()
   const [title, setTitle] = useState(item?.title ?? '')
   const [locationId, setLocationId] = useState(item?.locationId ?? initialLocationId ?? '')
   const [quantity, setQuantity] = useState(String(item?.quantity ?? 1))
@@ -40,6 +41,12 @@ export function ItemEditorDialog({
 
   async function saveItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    // 공간 목록이 이미 있으면 재조회 오류가 있어도 저장을 막지 않는다.
+    // 선택한 공간의 유효성은 아래 검사와 DB 트리거가 다시 확인한다.
+    if (isLoading || spaces.length === 0) {
+      setMessage('보관 공간을 확인한 뒤 다시 시도해 주세요.')
+      return
+    }
     const normalizedTitle = title.trim()
     const normalizedCategory = category.trim()
     const normalizedUnit = unit.trim()
@@ -90,6 +97,26 @@ export function ItemEditorDialog({
 
     await invalidateHomeInventory(queryClient, ["items"])
     onClose()
+  }
+
+  // 재조회 실패로 입력 중인 폼이 사라지지 않도록, 공간이 없을 때만 안내 화면으로 바꾼다.
+  if (isLoading || spaces.length === 0) {
+    return (
+      <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-2 sm:p-4" role="dialog" aria-modal="true" aria-label="보관 공간 안내">
+        <div className="max-h-[calc(100dvh-1rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-4 shadow-2xl">
+          <div className="mb-3 flex justify-end">
+            <button type="button" onClick={onClose} className="grid size-9 place-items-center rounded-xl text-slate-500 hover:bg-slate-100" aria-label="보관 공간 안내 닫기"><X size={18} /></button>
+          </div>
+          {isLoading ? (
+            <p role="status" className="text-sm text-slate-500">보관 공간을 확인하고 있어요...</p>
+          ) : inventoryError ? (
+            <p role="alert" className="text-sm text-rose-700">공간 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p>
+          ) : (
+            <SpaceRequiredNotice />
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -168,7 +195,6 @@ export function ItemEditorDialog({
             {isSaving ? '저장 중...' : item ? '수정 저장' : '등록'}
           </button>
         </div>
-        {locations.length === 0 && <p className="mt-3 text-xs font-bold text-rose-700">물건을 등록하려면 먼저 보관 공간을 하나 만들어 주세요.</p>}
       </form>
     </div>
   )

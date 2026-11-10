@@ -22,6 +22,15 @@ const { readAllPages, cachedRows } = load('../lib/space/paged-query.ts')
 const { invalidateHomeInventory, refreshDisplayName } = load('../lib/space/query-cache.ts')
 const { toSceneCenter, getSpacePreviewFrame } = load('../lib/space/scene-coordinates.ts')
 const { applyPlanEdit, fitPlacementPosition, getPlacementSizeError } = load('../lib/space/placement-workflow.ts')
+const { defaultHomeName, isDefaultHomeName } = load('../lib/community/default-home-name.ts')
+
+test('기본 공동체 이름만 표시 이름 변경 대상으로 판별', () => {
+  assert.equal(defaultHomeName('새 이름'), '새 이름의 수납바구니')
+  assert.equal(isDefaultHomeName('email-id의 수납바구니', ['새 이름', 'email-id']), true)
+  assert.equal(isDefaultHomeName('새 이름의 수납바구니', ['예전 이름', 'email-id']), false)
+  assert.equal(isDefaultHomeName('우리 가족 창고', ['새 이름', 'email-id']), false)
+  assert.equal(isDefaultHomeName('의 수납바구니', ['', null, undefined]), false)
+})
 
 test('높은 부모 공간도 미리보기의 여덟 꼭짓점이 시야 안에 들어옴', () => {
   for (const bounds of [

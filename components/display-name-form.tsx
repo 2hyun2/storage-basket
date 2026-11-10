@@ -7,6 +7,35 @@ import { UserRound } from 'lucide-react'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
 import { refreshDisplayName } from '@/lib/space/query-cache'
+import { defaultHomeName, isDefaultHomeName } from '@/lib/community/default-home-name'
+
+type SupabaseClient = ReturnType<typeof createClient>
+
+// 표시 이름 저장은 이미 끝났으므로 공동체 이름 변경 실패는 저장 실패로 처리하지 않고 결과만 알린다.
+async function renameDefaultHomes(supabase: SupabaseClient, userId: string, nextDisplayName: string, previousNames: Array<string | null | undefined>) {
+  const { data: ownerships, error: ownershipError } = await supabase.from('home_members')
+    .select('home_id')
+    .eq('user_id', userId)
+    .eq('role', 'owner')
+  if (ownershipError) return { renamed: 0, failed: true }
+
+  const homeIds = (ownerships ?? []).map((ownership) => ownership.home_id)
+  if (homeIds.length === 0) return { renamed: 0, failed: false }
+
+  const { data: homes, error: homesError } = await supabase.from('homes').select('id, name').in('id', homeIds)
+  if (homesError) return { renamed: 0, failed: true }
+
+  const nextHomeName = defaultHomeName(nextDisplayName)
+  const targets = (homes ?? []).filter((home) => home.name !== nextHomeName && isDefaultHomeName(home.name, previousNames))
+  let renamed = 0
+  for (const home of targets) {
+    // 조회 뒤 다른 사람이 이름을 바꿨다면 덮어쓰지 않도록 기존 이름도 조건에 둔다.
+    const { data, error } = await supabase.from('homes').update({ name: nextHomeName }).eq('id', home.id).eq('name', home.name).select('id')
+    if (error) return { renamed, failed: true }
+    renamed += data?.length ?? 0
+  }
+  return { renamed, failed: false }
+}
 
 const displayNameSchema = z.string().trim()
   .min(2, '이름은 2자 이상 입력해 주세요.')
@@ -28,6 +57,11 @@ export function DisplayNameForm({ displayName }: { displayName: string }) {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       if (authError || !user) throw new Error('다시 로그인한 뒤 수정해 주세요.')
 
+      const { data: previousProfile, error: previousProfileError } = await supabase.from('profiles')
+        .select('display_name')
+        .eq('id', user.id)
+        .maybeSingle()
+
       const { data: profile, error } = await supabase.from('profiles')
         .update({ display_name: parsed.data })
         .eq('id', user.id)
@@ -35,13 +69,34 @@ export function DisplayNameForm({ displayName }: { displayName: string }) {
         .single()
 
       if (error) throw new Error('이름을 저장하지 못했어요. 다시 시도해 주세요.')
-      return profile
+
+      // 내가 대표인 공동체 중 이름이 가입 때 자동으로 만든 기본 이름 그대로면 새 표시 이름에 맞춘다.
+      // 기본 이름 후보: 직전 표시 이름, 가입 시 표시 이름이 없을 때 쓰인 이메일 아이디.
+      // 직전 이름을 모르면 대상을 빠뜨린 채 성공으로 안내하게 되므로 변경하지 않고 실패로 알린다.
+      // 프로필은 이미 저장됐으므로 공동체 이름 단계의 예외도 저장 실패로 전파하지 않는다.
+      let homeRename = { renamed: 0, failed: true }
+      if (!previousProfileError) {
+        try {
+          homeRename = await renameDefaultHomes(supabase, user.id, profile.display_name, [
+            previousProfile?.display_name,
+            user.email?.split('@')[0],
+          ])
+        } catch {
+          homeRename = { renamed: 0, failed: true }
+        }
+      }
+      return { profile, homeRename }
     },
-    onSuccess: async (profile) => {
+    onSuccess: async ({ profile, homeRename }) => {
       setName(profile.display_name)
       await refreshDisplayName(queryClient, profile.id, profile.display_name)
+      if (homeRename.renamed > 0) await queryClient.invalidateQueries({ queryKey: ['my-homes'] })
       setIsEditing(false)
-      setMessage('표시 이름을 변경했어요.')
+      setMessage(homeRename.failed
+        ? '표시 이름을 변경했어요. 공동체 이름은 바꾸지 못했으니 공동체 화면에서 직접 수정해 주세요.'
+        : homeRename.renamed > 0
+          ? '표시 이름을 변경했어요. 기본 공동체 이름도 함께 바꿨어요.'
+          : '표시 이름을 변경했어요.')
       router.refresh()
     },
   })

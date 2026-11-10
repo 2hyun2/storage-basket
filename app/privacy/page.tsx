@@ -75,7 +75,7 @@ export default function PrivacyPage() {
   return (
     <>
       <main className="min-h-dvh bg-[#f5f8fd] px-4 py-4 text-slate-950">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-5xl">
           <nav className="flex flex-wrap items-center justify-between gap-3" aria-label="개인정보 안내 메뉴">
             <Link href="/" className="inline-flex items-center gap-2 font-semibold"><BrandIcon size={36} color="#1d4ed8" />우리집 공간록</Link>
             <Link href="/guide" className="text-sm font-medium text-violet-700 hover:underline">사용 가이드</Link>

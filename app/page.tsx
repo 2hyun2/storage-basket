@@ -106,7 +106,7 @@ export default async function HomePage() {
                     <span className="absolute bottom-0 left-0 h-1/3 w-1/3 border border-teal-300 bg-teal-100/65 p-1 text-[8px] font-bold text-teal-900">화장실</span>
                     <span className="absolute left-0 top-0 h-1/6 w-[11.67%] border border-slate-400 bg-slate-200/90 p-0.5 text-[7px] font-bold text-slate-700">신발장</span>
                     <span className="absolute left-[11.67%] top-0 h-1/6 w-[21.66%] border border-slate-400 bg-white/90 p-0.5 text-[7px] font-bold text-slate-700">싱크대</span>
-                    <span className="absolute left-[33.33%] top-0 h-1/6 w-[8.33%] border border-blue-400 bg-blue-300/90 p-0.5 text-[7px] font-bold text-blue-950">냉장고</span>
+                    <span className="absolute left-[33.33%] top-0 h-1/6 w-[8.33%] border border-violet-400 bg-violet-300/90 p-0.5 text-[7px] font-bold text-violet-950">냉장고</span>
                     <span className="absolute left-[41.66%] top-0 h-1/6 w-1/4 border border-cyan-400 bg-cyan-200/90 p-0.5 text-[7px] font-bold text-cyan-950">책상</span>
                     <span className="absolute left-[66.66%] top-0 h-1/6 w-[13.33%] border border-sky-400 bg-sky-300/90 p-0.5 text-[7px] font-bold text-sky-950">옷장</span>
                     <span className="absolute right-0 top-0 h-1/6 w-1/5 border border-slate-700 bg-slate-950/90 p-0.5 text-[7px] font-bold text-white">보일러실</span>
@@ -126,7 +126,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="features" className="mx-auto max-w-5xl px-2 py-16 sm:px-0">
+      <section id="features" className="px-4 py-16 sm:px-6">
+        <div className="mx-auto max-w-5xl">
         <p className="text-sm font-bold text-violet-600">SIMPLE, TOGETHER</p>
         <h2 className="mt-2 max-w-lg text-3xl font-extrabold leading-tight tracking-[-0.05em] sm:text-4xl">찾고, 함께 정리하고,<br />기억하는 공간.</h2>
         <div className="mt-8 grid gap-3 md:grid-cols-3">
@@ -142,6 +143,7 @@ export default async function HomePage() {
               <p className="mt-2 text-sm leading-6 text-slate-500">{feature.description}</p>
             </article>
           ))}
+        </div>
         </div>
       </section>
 

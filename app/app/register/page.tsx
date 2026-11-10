@@ -1,5 +1,9 @@
+'use client'
+
 import Link from 'next/link'
 import { ArrowLeft, Box, ChevronRight, Package, Plus } from 'lucide-react'
+import { SpaceRequiredNotice } from '@/components/space/space-required-notice'
+import { useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 
 const registrationOptions = [
   {
@@ -21,6 +25,9 @@ const registrationOptions = [
 ]
 
 export default function RegisterPage() {
+  // 재조회 실패 시에도 기존 data가 유지되므로, 오류 안내는 공간 데이터가 없을 때만 보여준다.
+  const { spaces, isLoading, error } = useSupabaseInventory()
+
   return (
     <main className="min-h-dvh bg-[#f5f8fd] px-2 py-4 text-slate-950 sm:px-4 sm:py-4">
       <section className="mx-auto max-w-5xl">
@@ -35,16 +42,24 @@ export default function RegisterPage() {
           <p className="mt-3 text-sm leading-6 text-slate-500">공간을 먼저 만들면 그 안에 물건을 기록할 수 있습니다.</p>
         </header>
 
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          {registrationOptions.map(({ href, icon: Icon, tone, title, description, hint }) => (
-            <Link key={href} href={href} className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md sm:p-4">
-              <span className={`grid size-10 place-items-center rounded-xl ${tone}`}><Icon size={20} /></span>
-              <h2 className="mt-4 flex items-center justify-between gap-2 text-lg font-semibold text-slate-950">{title}<ChevronRight size={18} className="text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-violet-700" /></h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
-              <p className="mt-4 border-t border-slate-100 pt-3 text-xs leading-5 text-slate-500">{hint}</p>
-            </Link>
-          ))}
-        </div>
+        {isLoading ? (
+          <p role="status" className="mt-4 text-sm text-slate-500">등록된 공간을 확인하고 있어요...</p>
+        ) : error && spaces.length === 0 ? (
+          <p role="alert" className="mt-4 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">공간 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p>
+        ) : spaces.length === 0 ? (
+          <div className="mt-4"><SpaceRequiredNotice /></div>
+        ) : (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {registrationOptions.map(({ href, icon: Icon, tone, title, description, hint }) => (
+              <Link key={href} href={href} className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md sm:p-4">
+                <span className={`grid size-10 place-items-center rounded-xl ${tone}`}><Icon size={20} /></span>
+                <h2 className="mt-4 flex items-center justify-between gap-2 text-lg font-semibold text-slate-950">{title}<ChevronRight size={18} className="text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-violet-700" /></h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
+                <p className="mt-4 border-t border-slate-100 pt-3 text-xs leading-5 text-slate-500">{hint}</p>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   )

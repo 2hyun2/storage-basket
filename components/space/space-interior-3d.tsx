@@ -847,7 +847,7 @@ export function PlanPlacementCanvas({
         <button
           type="button"
           onPointerDown={(event) => start(event, 'move')}
-          className="inline-flex touch-none cursor-grab select-none items-center gap-1 whitespace-nowrap rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 active:cursor-grabbing"
+          className="inline-flex touch-none cursor-grab select-none items-center gap-1 whitespace-nowrap rounded border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-700 active:cursor-grabbing"
         >
           <Move size={14} aria-hidden="true" /> 이동 손잡이
         </button>
@@ -956,7 +956,7 @@ export function PlanPlacementCanvas({
             onPointerDown={startResize}
             className={`absolute z-20 grid size-6 place-items-center ${location} ${cursor}`}
           >
-            <span className="pointer-events-none size-2.5 border border-blue-700 bg-white shadow-sm" />
+            <span className="pointer-events-none size-2.5 border border-violet-700 bg-white shadow-sm" />
           </div>
         ))}
       </div>

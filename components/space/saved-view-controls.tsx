@@ -96,14 +96,15 @@ export function SavedViewControls({ center, scale, defaultPosition, enabled = tr
   return (
     <>
       <OrbitControls ref={controls} target={center} enablePan={false} minDistance={size * 0.2} maxDistance={size * 6} minPolarAngle={0.08} maxPolarAngle={Math.PI / 2 - 0.08} />
+      {/* 버튼 줄은 3D 좌표가 아니라 캔버스 중앙에 고정한다. 3D 좌표에 붙이면 저장 시점에 따라 투영 위치가 달라져 버튼이 밀리거나 잘린다. */}
       {enabled && userId && (
-        <Html fullscreen position={center} zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
+        <Html fullscreen calculatePosition={(_element, _camera, size) => [size.width / 2, size.height / 2]} zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
           <div className="absolute bottom-2 left-2 right-2 flex flex-wrap items-center gap-1">
             {([
               ['save', '현재 시점 저장'],
               ['restore', '저장한 시점으로 복귀'],
               ['reset', '기본 시점 초기화'],
-            ] as const).map(([action, label]) => <button key={action} type="button" onClick={(event) => { event.stopPropagation(); act(action) }} className="pointer-events-auto rounded-lg border border-slate-200 bg-white/95 px-2 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-blue-50">{label}</button>)}
+            ] as const).map(([action, label]) => <button key={action} type="button" onClick={(event) => { event.stopPropagation(); act(action) }} className="pointer-events-auto rounded-lg border border-slate-200 bg-white/95 px-2 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-violet-50">{label}</button>)}
             {message && <p role="status" className="w-full rounded-lg bg-white/95 px-2 py-1 text-xs text-slate-600">{message}</p>}
           </div>
         </Html>

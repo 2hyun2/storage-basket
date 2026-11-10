@@ -15,7 +15,7 @@ export function PlacementStepNavigation({ step, onSize, onPosition }: {
           ['position', '2. 배치하기', onPosition],
         ] as const).map(([value, label, onClick]) => (
           <button key={value} type="button" onClick={onClick} aria-current={step === value ? 'step' : undefined}
-            className={`rounded-lg border px-2 py-2 text-sm font-semibold ${step === value ? 'border-blue-600 bg-blue-50 text-blue-800' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+            className={`rounded-lg border px-2 py-2 text-sm font-semibold ${step === value ? 'border-violet-600 bg-violet-50 text-violet-800' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
           >
             {label}
           </button>

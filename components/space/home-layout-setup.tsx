@@ -75,7 +75,7 @@ export function HomeLayoutSetup() {
           <span className="grid size-10 place-items-center rounded-xl bg-violet-100 text-violet-700"><House size={20} /></span>
           <div>
             <p className="text-sm font-bold text-violet-700">우리 집 전체 크기</p>
-            <p className="mt-1 text-sm leading-6 text-slate-600">가로 {homeLayout.widthCm}cm · 세로 {homeLayout.depthCm}cm · 공간 높이 {homeLayout.heightCm}cm</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">가로 {homeLayout.widthCm}cm · 세로 {homeLayout.depthCm}cm · 높이 {homeLayout.heightCm}cm</p>
           </div>
         </div>
         <button
@@ -103,7 +103,7 @@ export function HomeLayoutSetup() {
       <form onSubmit={saveHomeLayout} className="mt-4 grid gap-3 sm:grid-cols-3">
         <NumberField label="가로 X (cm)" name="widthCm" placeholder="예: 900" defaultValue={homeLayout?.widthCm} />
         <NumberField label="세로 Y (cm)" name="depthCm" placeholder="예: 600" defaultValue={homeLayout?.depthCm} />
-        <NumberField label="공간 높이 Z (cm)" name="heightCm" placeholder="예: 240" defaultValue={homeLayout?.heightCm} />
+        <NumberField label="높이 Z (cm)" name="heightCm" placeholder="예: 240" defaultValue={homeLayout?.heightCm} />
         <div className="flex gap-2 sm:col-span-3">
           {homeLayout && <button type="button" onClick={() => { setIsEditing(false); setMessage(null) }} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600">취소</button>}
           <button disabled={isSaving} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white disabled:bg-violet-300"><Ruler size={16} />{isSaving ? '저장 중...' : homeLayout ? '집 크기 저장' : '빈 집 격자 만들기'}</button>

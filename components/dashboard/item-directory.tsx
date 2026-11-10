@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { FolderSearch, History, MapPinned, Package, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { ItemDetailDialog } from '@/components/item-detail-dialog'
 import { ItemEditorDialog } from '@/components/item-editor-dialog'
+import { SpaceRequiredNotice } from '@/components/space/space-required-notice'
 import { DeleteItemButton } from '@/components/space/delete-item-button'
 import { useSupabaseInventory } from '@/lib/space/use-supabase-inventory'
 import {
@@ -18,7 +19,7 @@ export function ItemDirectory() {
   const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const { spaces, items } = useSupabaseInventory()
+  const { spaces, items, isLoading, error } = useSupabaseInventory()
   const [manualEditor, setManualEditor] = useState<EditorRequest | null>(null)
   const [dismissedQueryKey, setDismissedQueryKey] = useState<string | null>(null)
   const editItemId = searchParams.get('edit')
@@ -80,6 +81,27 @@ export function ItemDirectory() {
       })
       .sort((left, right) => left.title.localeCompare(right.title, 'ko'))
   }, [itemsWithPath, searchQuery, selectedCategory])
+
+  // 재조회가 실패해도 TanStack Query는 기존 data를 유지한다.
+  // 공간 데이터가 있으면 목록을 계속 보여주고, 공간이 없을 때만 오류와 안내를 구분한다.
+  if (isLoading || spaces.length === 0) {
+    return (
+      <div className="mt-4">
+        {isLoading ? (
+          <p role="status" className="text-sm text-slate-500">보관 공간을 확인하고 있어요...</p>
+        ) : error ? (
+          <p role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">공간 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p>
+        ) : (
+          <>
+            <SpaceRequiredNotice />
+            <Link href="/app/items/trash" className="mt-3 inline-flex items-center gap-1 text-sm text-slate-600 hover:text-violet-700">
+              <Trash2 size={15} /> 물건 휴지통
+            </Link>
+          </>
+        )}
+      </div>
+    )
+  }
 
   return (
     <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-4">
